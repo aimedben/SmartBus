@@ -1,0 +1,502 @@
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, RefreshControl } from 'react-native';
+import { useAuth } from '@/context/AuthContext';
+import { colors } from '@/constants/colors';
+import { Bus, Calendar, Clock, ChevronRight, Info, MapPin, User, Users } from 'lucide-react-native';
+import DashboardHeader from '@/components/DashboardHeader';
+import { getBusStatus, getStudents, getUpcomingTrips } from '@/utils/mockData';
+
+export default function HomeScreen() {
+  const { userRole, userName } = useAuth();
+  const [busStatus, setBusStatus] = useState<any>(null);
+  const [students, setStudents] = useState<any[]>([]);
+  const [upcomingTrips, setUpcomingTrips] = useState<any[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    loadData();
+  }, [userRole]);
+
+  const loadData = () => {
+    setBusStatus(getBusStatus(userRole));
+    
+    if (userRole === 'parent') {
+      setStudents(getStudents());
+    }
+    
+    setUpcomingTrips(getUpcomingTrips(userRole));
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadData();
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1500);
+  };
+
+  const renderRoleSpecificContent = () => {
+    switch (userRole) {
+      case 'parent':
+        return (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>My Children</Text>
+              <TouchableOpacity>
+                <Text style={styles.seeAllText}>See All</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView 
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.studentsContainer}
+            >
+              {students.map((student, index) => (
+                <TouchableOpacity key={index} style={styles.studentCard}>
+                  <Image source={{ uri: student.avatar }} style={styles.studentImage} />
+                  <Text style={styles.studentName}>{student.name}</Text>
+                  <Text style={styles.studentGrade}>{student.grade}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        );
+      
+      case 'driver':
+        return (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Today's Route</Text>
+              <TouchableOpacity>
+                <Text style={styles.seeAllText}>Details</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.routeCard}>
+              <View style={styles.routeHeader}>
+                <Bus size={20} color={colors.primary} />
+                <Text style={styles.routeName}>Route #103</Text>
+              </View>
+              <View style={styles.routeDetail}>
+                <MapPin size={16} color={colors.textLight} />
+                <Text style={styles.routeText}>14 stops • 32 km</Text>
+              </View>
+              <View style={styles.routeDetail}>
+                <Users size={16} color={colors.textLight} />
+                <Text style={styles.routeText}>28 students onboard</Text>
+              </View>
+              <View style={styles.routeDetail}>
+                <Clock size={16} color={colors.textLight} />
+                <Text style={styles.routeText}>Estimated trip time: 45 min</Text>
+              </View>
+            </View>
+          </View>
+        );
+      
+      case 'admin':
+        return (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Fleet Status</Text>
+              <TouchableOpacity>
+                <Text style={styles.seeAllText}>View All</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.statsContainer}>
+              <View style={styles.statCard}>
+                <View style={[styles.statIconContainer, { backgroundColor: colors.primaryLight }]}>
+                  <Bus size={20} color={colors.primary} />
+                </View>
+                <Text style={styles.statValue}>12</Text>
+                <Text style={styles.statLabel}>Active Buses</Text>
+              </View>
+              <View style={styles.statCard}>
+                <View style={[styles.statIconContainer, { backgroundColor: colors.successLight }]}>
+                  <User size={20} color={colors.success} />
+                </View>
+                <Text style={styles.statValue}>18</Text>
+                <Text style={styles.statLabel}>Drivers</Text>
+              </View>
+              <View style={styles.statCard}>
+                <View style={[styles.statIconContainer, { backgroundColor: colors.warningLight }]}>
+                  <Users size={20} color={colors.warning} />
+                </View>
+                <Text style={styles.statValue}>324</Text>
+                <Text style={styles.statLabel}>Students</Text>
+              </View>
+            </View>
+          </View>
+        );
+      
+      case 'student':
+        return (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>My Bus</Text>
+            </View>
+            <View style={styles.studentBusCard}>
+              <View style={styles.studentBusHeader}>
+                <Bus size={24} color={colors.white} />
+                <View>
+                  <Text style={styles.studentBusTitle}>Bus #B42</Text>
+                  <Text style={styles.studentBusDriver}>Driver: Ahmed K.</Text>
+                </View>
+              </View>
+              <View style={styles.studentBusInfo}>
+                <View style={styles.studentBusDetail}>
+                  <Clock size={16} color={colors.textLight} />
+                  <Text style={styles.studentBusText}>Next pickup: 07:15 AM</Text>
+                </View>
+                <View style={styles.studentBusDetail}>
+                  <MapPin size={16} color={colors.textLight} />
+                  <Text style={styles.studentBusText}>Stop: University Gate 3</Text>
+                </View>
+              </View>
+              <TouchableOpacity style={styles.trackButton}>
+                <Text style={styles.trackButtonText}>Track Now</Text>
+                <ChevronRight size={16} color={colors.white} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      <DashboardHeader userName={userName} userRole={userRole} />
+      
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        {busStatus && (
+          <View style={styles.statusCard}>
+            <View style={styles.statusHeader}>
+              <Info size={18} color={busStatus.statusColor} />
+              <Text style={[styles.statusTitle, { color: busStatus.statusColor }]}>
+                {busStatus.statusText}
+              </Text>
+            </View>
+            <Text style={styles.statusDescription}>{busStatus.statusDescription}</Text>
+            {busStatus.eta && (
+              <View style={styles.etaContainer}>
+                <Clock size={16} color={colors.textLight} />
+                <Text style={styles.etaText}>
+                  {busStatus.eta}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+        
+        {renderRoleSpecificContent()}
+        
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Upcoming Trips</Text>
+            <TouchableOpacity>
+              <Text style={styles.seeAllText}>See All</Text>
+            </TouchableOpacity>
+          </View>
+          
+          {upcomingTrips.map((trip, index) => (
+            <TouchableOpacity key={index} style={styles.tripCard}>
+              <View style={styles.tripIconContainer}>
+                {trip.type === 'pickup' ? (
+                  <Bus size={24} color={colors.primary} />
+                ) : (
+                  <Bus size={24} color={colors.success} />
+                )}
+              </View>
+              <View style={styles.tripInfo}>
+                <Text style={styles.tripType}>
+                  {trip.type === 'pickup' ? 'Morning Pickup' : 'Afternoon Drop-off'}
+                </Text>
+                <View style={styles.tripDetail}>
+                  <Calendar size={14} color={colors.textLight} />
+                  <Text style={styles.tripText}>{trip.date}</Text>
+                </View>
+                <View style={styles.tripDetail}>
+                  <Clock size={14} color={colors.textLight} />
+                  <Text style={styles.tripText}>{trip.time}</Text>
+                </View>
+              </View>
+              <ChevronRight size={20} color={colors.textLight} />
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 32,
+  },
+  statusCard: {
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  statusHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  statusTitle: {
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 16,
+    marginLeft: 8,
+  },
+  statusDescription: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 14,
+    color: colors.textDark,
+    marginBottom: 8,
+  },
+  etaContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.backgroundLight,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  etaText: {
+    fontFamily: 'Poppins-Medium',
+    fontSize: 14,
+    color: colors.textDark,
+    marginLeft: 8,
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 18,
+    color: colors.textDark,
+  },
+  seeAllText: {
+    fontFamily: 'Poppins-Medium',
+    fontSize: 14,
+    color: colors.primary,
+  },
+  studentsContainer: {
+    paddingRight: 16,
+  },
+  studentCard: {
+    width: 100,
+    marginRight: 12,
+    alignItems: 'center',
+  },
+  studentImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    marginBottom: 8,
+  },
+  studentName: {
+    fontFamily: 'Poppins-Medium',
+    fontSize: 14,
+    color: colors.textDark,
+    textAlign: 'center',
+  },
+  studentGrade: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 12,
+    color: colors.textLight,
+    textAlign: 'center',
+  },
+  tripCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  tripIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  tripInfo: {
+    flex: 1,
+  },
+  tripType: {
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 16,
+    color: colors.textDark,
+    marginBottom: 4,
+  },
+  tripDetail: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  tripText: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 14,
+    color: colors.textLight,
+    marginLeft: 6,
+  },
+  routeCard: {
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  routeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  routeName: {
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 16,
+    color: colors.textDark,
+    marginLeft: 8,
+  },
+  routeDetail: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  routeText: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 14,
+    color: colors.textDark,
+    marginLeft: 8,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    marginHorizontal: 4,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  statIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  statValue: {
+    fontFamily: 'Poppins-Bold',
+    fontSize: 20,
+    color: colors.textDark,
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 12,
+    color: colors.textLight,
+    textAlign: 'center',
+  },
+  studentBusCard: {
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  studentBusHeader: {
+    backgroundColor: colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    gap: 12,
+  },
+  studentBusTitle: {
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 18,
+    color: colors.white,
+  },
+  studentBusDriver: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 14,
+    color: colors.white,
+    opacity: 0.8,
+  },
+  studentBusInfo: {
+    padding: 16,
+  },
+  studentBusDetail: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  studentBusText: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 14,
+    color: colors.textDark,
+    marginLeft: 8,
+  },
+  trackButton: {
+    backgroundColor: colors.primary,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  trackButtonText: {
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 14,
+    color: colors.white,
+    marginRight: 4,
+  },
+});
