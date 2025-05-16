@@ -1,10 +1,16 @@
-import React, { useState } from 'react';
+import React, { useEffect,useState } from 'react';
+
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import { colors } from '@/constants/colors';
 import { useAuth } from '@/context/AuthContext';
+import { db } from "../../firebaseConfig";
+import { doc, setDoc } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+
 
 const userTypes = [
   {
@@ -36,13 +42,56 @@ const userTypes = [
 export default function UserTypeScreen() {
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const { setUserRole } = useAuth();
+  const [loading, setLoading] = useState(false);
+
   
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (selectedType) {
-      setUserRole(selectedType);
-      router.replace('/(tabs)');
+      const auth = getAuth();
+      const currentUser = auth.currentUser;
+      if (!currentUser) return;
+  
+      try {
+        const userDoc = doc(db, "Users", currentUser.uid); // Adapte le nom de la collection
+        await setDoc(userDoc, {
+          uid: currentUser.uid,
+          role: selectedType,
+        }, { merge: true });
+  
+        setUserRole(selectedType);
+        router.replace('/(tabs)');
+      } catch (error) {
+        console.error("Erreur lors de l'enregistrement du rôle :", error);
+      }
     }
   };
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      const auth = getAuth();
+      const currentUser = auth.currentUser;
+  
+      if (!currentUser) return;
+  
+      try {
+        const utilisateurRef = collection(db, "Users"); // Change "Users" selon ta collection
+        const q = query(utilisateurRef, where("uid", "==", currentUser.uid));
+        const snapshot = await getDocs(q);
+  
+        if (!snapshot.empty) {
+          const userData = snapshot.docs[0].data();
+          if (userData.role) {
+            setSelectedType(userData.role);
+          }
+        }
+      } catch (error) {
+        console.error("Erreur lors du chargement du rôle utilisateur :", error);
+      }
+    };
+  
+    fetchUserRole();
+  }, []);
+ 
+    
 
   return (
     <View style={styles.container}>

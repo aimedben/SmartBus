@@ -1,9 +1,21 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import React, { useState, useEffect } from "react";
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, Platform, ScrollView ,Alert} from 'react-native';
 import { router } from 'expo-router';
 import { Lock, Mail, User, Eye, EyeOff, ChevronLeft } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import { colors } from '@/constants/colors';
+import { getAuth } from 'firebase/auth';
+import { useRouter } from "expo-router";
+import {
+  addDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
+import { db } from "../../firebaseConfig";
+import * as ImagePicker from "expo-image-picker";
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 
 export default function RegisterScreen() {
   const [name, setName] = useState('');
@@ -14,33 +26,95 @@ export default function RegisterScreen() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fullName, setFullName] = useState("");
+  const [profileImage, setProfileImage] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
-  const handleRegister = async () => {
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const auth = getAuth();
+      const currentUser = auth.currentUser;
+
+      if (!currentUser) return;
+
+      try {
+        const utilisateurRef = collection(db, "Users");
+        const q = query(utilisateurRef, where("uid", "==", currentUser.uid));
+        const snapshot = await getDocs(q);
+
+        if (!snapshot.empty) {
+          const data = snapshot.docs[0].data();  
+          setFullName(data.fullName || "");
+          
+          setProfileImage(data.profileImage || null);
+        }
+      } catch (error) {
+        console.error("Erreur chargement profil :", error);
+      }
+    };
+
+    fetchProfile();
+  }, []);
+  const handleNext = async () => {
     if (!name || !email || !password || !confirmPassword) {
-      setError('Please fill in all fields');
+      Alert.alert("Champs requis", "Veuillez remplir tous les champs.");
       return;
     }
-    
+  
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      Alert.alert("Erreur", "Les mots de passe ne correspondent pas.");
       return;
     }
-    
-    setIsLoading(true);
-    setError(null);
-    
+  
     try {
-      // Mock registration - in a real app, this would create an account with Firebase
-      setTimeout(() => {
-        router.push('/user-type');
-      }, 1500);
-    } catch (error) {
-      setError('Registration failed. Please try again.');
+      setLoading(true);
+      const auth = getAuth();
+  
+      // Étape 1 : Créer le compte dans Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+  
+      // Étape 2 : Enregistrer les infos dans Firestore
+      const utilisateurRef = collection(db, "Users");
+      await addDoc(utilisateurRef, {
+        uid: user.uid,
+        email: user.email,
+        fullName: name,
+        profileImage: profileImage,
+        createdAt: new Date(),
+      });
+  
+      Alert.alert("Succès", "Compte créé avec succès !");
+      router.push("/(auth)/user-type"); // ou autre écran approprié
+    } catch (error: any) {
+      console.error("Erreur d'inscription :", error);
+      Alert.alert("Erreur", error.message || "Une erreur est survenue.");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
+  
 
+  const openCamera = async () => {
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permissionResult.granted) {
+      Alert.alert("Permission requise", "L'accès à la caméra est nécessaire !");
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+    });
+
+    if (!result.canceled) {
+      setProfileImage(result.assets[0].uri);
+    }
+  };
+  
+  
   return (
     <KeyboardAvoidingView 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -141,7 +215,7 @@ export default function RegisterScreen() {
           
           <TouchableOpacity 
             style={[styles.registerButton, isLoading && styles.registerButtonDisabled]} 
-            onPress={handleRegister}
+            onPress={handleNext}
             disabled={isLoading}
           >
             <Text style={styles.registerButtonText}>

@@ -8,16 +8,17 @@ import { db } from '../../firebaseConfig';
 import { doc, getDoc } from 'firebase/firestore';
 
 export default function ProfileScreen() {
-  const { userRole, uid, signOut } = useAuth(); // ← userId requis
+  const { userRole, userId, signOut } = useAuth();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [locationEnabled, setLocationEnabled] = useState(true);
-   const [userData, setUserData] = useState({
-      fullName: '',
-      
-     
-    });
+  const [userData, setUserData] = useState({
+    fullName: '',
+    email: '',
+    phone: '',
+    // Ajoutez d'autres champs selon votre structure Firestore
+  });
   const [loading, setLoading] = useState(true);
-  const [error , setError] = useState(null);
+  const [error, setError] = useState(null);
 
   const getUserRoleTitle = () => {
     switch (userRole) {
@@ -34,22 +35,28 @@ export default function ProfileScreen() {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        if (!userId) return;
-        const docRef = doc(db, 'Users', uid);
+        if (!userId) {
+          setError('No user ID found');
+          return;
+        }
+
+        const docRef = doc(db, 'Users', userId);
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
           setUserData({
             fullName: docSnap.data().fullName || 'No name',
-           
-            
+            email: docSnap.data().email || 'No email',
+            phone: docSnap.data().phone || 'No phone',
+            // Ajoutez d'autres champs ici
           });
-          
         } else {
+          setError('User document does not exist');
           console.warn('User data not found');
         }
       } catch (error) {
         console.error('Error fetching user data:', error);
+        setError('Failed to load user data');
       } finally {
         setLoading(false);
       }
@@ -66,20 +73,36 @@ export default function ProfileScreen() {
     );
   }
 
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <ScreenHeader title="Profile" />
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <ScreenHeader title="Profile" />
       <ScrollView style={styles.scrollView}>
         <View style={styles.profileHeader}>
           <Image source={getUserAvatar()} style={styles.profileImage} />
-          <Text style={styles.profileName}>{userData?.fullName}</Text>
+          <Text style={styles.profileName}>{userData.fullName}</Text>
           <Text style={styles.profileRole}>{getUserRoleTitle()}</Text>
+          
+          {/* Afficher d'autres données utilisateur si nécessaire */}
+          <Text style={styles.profileDetail}>Email: {userData.email}</Text>
+          {userData.phone && <Text style={styles.profileDetail}>Phone: {userData.phone}</Text>}
 
           <TouchableOpacity style={styles.editProfileButton}>
             <Text style={styles.editProfileButtonText}>Edit Profile</Text>
           </TouchableOpacity>
         </View>
 
+        {/* Le reste de votre code reste inchangé */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Settings</Text>
 
@@ -167,7 +190,6 @@ export default function ProfileScreen() {
   );
 }
 
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -195,6 +217,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.background,
   },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 16,
+    color: colors.error,
+    textAlign: 'center',
+  },
   profileName: {
     fontFamily: 'Poppins-SemiBold',
     fontSize: 24,
@@ -205,13 +239,20 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
     fontSize: 16,
     color: colors.textLight,
-    marginBottom: 16,
+    marginBottom: 8,
+  },
+  profileDetail: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 14,
+    color: colors.textLight,
+    marginBottom: 4,
   },
   editProfileButton: {
     paddingHorizontal: 20,
     paddingVertical: 10,
     backgroundColor: colors.primaryLight,
     borderRadius: 8,
+    marginTop: 16,
   },
   editProfileButtonText: {
     fontFamily: 'Poppins-Medium',

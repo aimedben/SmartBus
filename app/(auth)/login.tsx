@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, Platform, ScrollView,Alert } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { Lock, Mail, Eye, EyeOff } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import { colors } from '@/constants/colors';
+import { auth } from '../../firebaseConfig'; 
+import { useRouter } from "expo-router";
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -12,28 +16,28 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  const { signIn } = useAuth();
+  const router = useRouter();
+    
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
+  const signIn = async () => {
     if (!email || !password) {
-      setError('Please enter both email and password');
-      return;
+        Alert.alert('Erreur', 'Veuillez remplir tous les champs');
+        return;
     }
-    
-    setIsLoading(true);
-    setError(null);
-    
+
+    setLoading(true);
     try {
-      // Mock authentication - in a real app, this would verify with Firebase
-      await signIn(email, password);
-      router.replace('/(tabs)');
-    } catch (error) {
-      setError('Invalid email or password. Please try again.');
+        await signInWithEmailAndPassword(auth, email, password);
+        Alert.alert('Succès', 'Connexion réussie !');
+        router.push("../(tabs)");
+    } catch (error: any) {
+        Alert.alert('Erreur de connexion', error.message);
     } finally {
-      setIsLoading(false);
+        setLoading(false);
     }
   };
+  
 
   const navigateToRegister = () => {
     router.push('/register');
@@ -105,7 +109,7 @@ export default function LoginScreen() {
           
           <TouchableOpacity 
             style={[styles.loginButton, isLoading && styles.loginButtonDisabled]} 
-            onPress={handleLogin}
+            onPress={signIn}
             disabled={isLoading}
           >
             <Text style={styles.loginButtonText}>
