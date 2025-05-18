@@ -136,7 +136,7 @@ export default function RegisterScreen() {
         <View style={styles.formContainer}>
           <View style={styles.logoContainer}>
             <Image 
-              source={{ uri: 'https://images.pexels.com/photos/5025512/pexels-photo-5025512.jpeg' }} 
+              source={require('../../assets/images/logo-transparent.png' )}
               style={styles.logo}
             />
           </View>

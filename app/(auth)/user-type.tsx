@@ -10,6 +10,10 @@ import { db } from "../../firebaseConfig";
 import { doc, setDoc } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { collection, query, where, getDocs } from 'firebase/firestore';
+import AdminDashboard from '../RoleInterfaces/AdminDashboard';
+import ParentDashboard from '../RoleInterfaces/ParentDashboard';
+import DriverDashboard from '../RoleInterfaces/DriverDashboard';
+import ChildDashboard from '../RoleInterfaces/ChildDashboard';
 
 
 const userTypes = [
@@ -46,25 +50,64 @@ export default function UserTypeScreen() {
 
   
   const handleContinue = async () => {
-    if (selectedType) {
-      const auth = getAuth();
-      const currentUser = auth.currentUser;
-      if (!currentUser) return;
-  
-      try {
-        const userDoc = doc(db, "Users", currentUser.uid); // Adapte le nom de la collection
-        await setDoc(userDoc, {
-          uid: currentUser.uid,
-          role: selectedType,
-        }, { merge: true });
-  
-        setUserRole(selectedType);
-        router.replace('/(tabs)');
-      } catch (error) {
-        console.error("Erreur lors de l'enregistrement du rôle :", error);
-      }
+  if (!selectedType) {
+    Alert.alert("Erreur", "Veuillez sélectionner un type d'utilisateur.");
+    return;
+  }
+
+  const auth = getAuth();
+  const currentUser = auth.currentUser;
+
+  if (!currentUser) {
+    Alert.alert("Erreur", "Aucun utilisateur connecté.");
+    return;
+  }
+
+  try {
+    // Choix de la collection selon le rôle
+    let collectionName = "";
+    switch (selectedType) {
+      case "parent":
+        collectionName = "parents";
+        break;
+      case "driver":
+        collectionName = "drivers";
+        break;
+      case "admin":
+        collectionName = "admins";
+        break;
+      case "student":
+        collectionName = "students";
+        break;
+      default:
+        collectionName = "users"; // valeur par défaut
+        break;
     }
-  };
+
+    // Référence au document dans la collection appropriée
+    const userDocRef = doc(db, collectionName, currentUser.uid);
+
+    // Enregistrement du document avec les infos basiques
+    await setDoc(userDocRef, {
+      uid: currentUser.uid,
+      role: selectedType,
+      email: currentUser.email,
+      createdAt: new Date(),
+    });
+
+    // Mise à jour du contexte ou état global
+    setUserRole(selectedType);
+
+    // Navigation vers la page principale
+    router.replace('/(tabs)');
+
+  } catch (error) {
+    console.error("Erreur lors de l'enregistrement du rôle :", error);
+    Alert.alert("Erreur", "Impossible d'enregistrer le rôle utilisateur.");
+  }
+};
+
+
   useEffect(() => {
     const fetchUserRole = async () => {
       const auth = getAuth();

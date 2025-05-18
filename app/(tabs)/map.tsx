@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { colors } from '@/constants/colors';
 import { Bus, Clock, MapPin, ChevronDown, Layers, Navigation2 } from 'lucide-react-native';
 import { getBusLocation, getBusRoutes, getBusStops } from '@/utils/mockData';
-import MapView from '@/components/MapView';
+import MapViewComponent from '@/components/MapView';
 
 export default function MapScreen() {
   const { userRole } = useAuth();
@@ -13,30 +13,57 @@ export default function MapScreen() {
   const [busRoutes, setBusRoutes] = useState([]);
   const [busStops, setBusStops] = useState([]);
   const [showDetails, setShowDetails] = useState(true);
-  const [mapType, setMapType] = useState<'standard' | 'satellite'>('standard');
+  const [mapType, setMapType] = useState('standard');
+  const mapRef = useRef(null);
+  const [busLocations, setBusLocations] = useState([]);
 
   useEffect(() => {
     loadBusData();
-    const interval = setInterval(() => {
-      setBusLocation(getBusLocation(selectedBus));
-    }, 5000);
+    updateAllBusLocations();
+    const interval = setInterval(updateAllBusLocations, 5000);
     return () => clearInterval(interval);
-  }, [selectedBus]);
+  }, []);
 
-  const loadBusData = () => {
-    setBusLocation(getBusLocation(selectedBus));
-    setBusRoutes(getBusRoutes());
-    setBusStops(getBusStops());
+  // Met à jour la position de tous les bus
+  const updateAllBusLocations = () => {
+    const allLocations = [0, 1, 2].map((index) => getBusLocation(index));
+    setBusLocations(allLocations);
+    setBusLocation(allLocations[selectedBus]);
   };
 
+  const loadBusData = () => {
+    setBusRoutes(getBusRoutes());
+    setBusStops(getBusStops());
+    updateAllBusLocations();
+  };
+
+  // Change le type de la carte entre standard et satellite
   const toggleMapType = useCallback(() => {
     setMapType((prevType) => (prevType === 'standard' ? 'satellite' : 'standard'));
   }, []);
 
+  // Centre la carte sur la position du bus sélectionné
+  const handleCenterMap = useCallback(() => {
+    if (mapRef.current && busLocation) {
+      mapRef.current.animateToRegion({
+        latitude: busLocation.latitude,
+        longitude: busLocation.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      });
+    }
+  }, [busLocation]);
+
+  // Change de bus sélectionné (uniquement pour admin)
+  useEffect(() => {
+    setBusLocation(busLocations[selectedBus]);
+  }, [selectedBus, busLocations]);
+
   return (
     <View style={styles.container}>
       <View style={styles.mapContainer}>
-        <MapView
+        <MapViewComponent
+          ref={mapRef}
           busLocation={busLocation}
           busRoutes={busRoutes}
           busStops={busStops}
@@ -47,7 +74,7 @@ export default function MapScreen() {
           <TouchableOpacity style={styles.mapControlButton} onPress={toggleMapType}>
             <Layers size={20} color={colors.primary} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.mapControlButton}>
+          <TouchableOpacity style={styles.mapControlButton} onPress={handleCenterMap}>
             <Navigation2 size={20} color={colors.primary} />
           </TouchableOpacity>
         </View>
@@ -89,9 +116,7 @@ export default function MapScreen() {
           <ChevronDown
             size={20}
             color={colors.textLight}
-            style={{
-              transform: [{ rotate: showDetails ? '0deg' : '-90deg' }],
-            }}
+            style={{ transform: [{ rotate: showDetails ? '0deg' : '-90deg' }] }}
           />
         </TouchableOpacity>
 
@@ -119,9 +144,7 @@ export default function MapScreen() {
                   styles.statusIndicator,
                   {
                     backgroundColor:
-                      busLocation?.status === 'en-route'
-                        ? colors.success
-                        : colors.warning,
+                      busLocation?.status === 'en-route' ? colors.success : colors.warning,
                   },
                 ]}
               />
@@ -133,10 +156,7 @@ export default function MapScreen() {
             <View style={styles.routeProgress}>
               <View style={styles.progressBar}>
                 <View
-                  style={[
-                    styles.progressFill,
-                    { width: `${busLocation?.routeProgress || 45}%` },
-                  ]}
+                  style={[styles.progressFill, { width: `${busLocation?.routeProgress || 45}%` }]}
                 />
               </View>
               <Text style={styles.progressText}>
@@ -156,16 +176,9 @@ export default function MapScreen() {
   );
 }
 
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  mapContainer: {
-    flex: 1,
-    position: 'relative',
-  },
+  container: { flex: 1, backgroundColor: colors.background },
+  mapContainer: { flex: 1, position: 'relative' },
   mapControls: {
     position: 'absolute',
     top: Platform.OS === 'ios' ? 60 : 40,
@@ -232,32 +245,20 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  detailsHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+  detailsHeaderLeft: { flexDirection: 'row', alignItems: 'center' },
   busNumber: {
     fontFamily: 'Poppins-SemiBold',
     fontSize: 16,
     color: colors.textDark,
     marginLeft: 8,
   },
-  chevron: {
-    transition: 'transform 0.3s',
-  },
-  detailsContent: {
-    padding: 16,
-    paddingTop: 8,
-  },
+  detailsContent: { padding: 16, paddingTop: 8 },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 16,
   },
-  infoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+  infoItem: { flexDirection: 'row', alignItems: 'center' },
   infoText: {
     fontFamily: 'Poppins-Regular',
     fontSize: 14,
@@ -268,18 +269,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.backgroundLight,
-    borderRadius: 8,
-    padding: 12,
+    padding: 8,
+    borderRadius: 12,
     marginBottom: 16,
   },
   statusIndicator: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    marginRight: 10,
+    marginRight: 8,
   },
   statusText: {
-    fontFamily: 'Poppins-Medium',
+    fontFamily: 'Poppins-Regular',
     fontSize: 14,
     color: colors.textDark,
   },
@@ -291,12 +292,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.backgroundLight,
     borderRadius: 4,
     overflow: 'hidden',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   progressFill: {
-    height: '100%',
+    height: 8,
     backgroundColor: colors.primary,
-    borderRadius: 4,
   },
   progressText: {
     fontFamily: 'Poppins-Regular',
@@ -306,13 +306,13 @@ const styles = StyleSheet.create({
   notifyButton: {
     backgroundColor: colors.primary,
     borderRadius: 12,
-    height: 48,
+    paddingVertical: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
   notifyButtonText: {
     fontFamily: 'Poppins-SemiBold',
-    fontSize: 16,
+    fontSize: 14,
     color: colors.white,
   },
 });

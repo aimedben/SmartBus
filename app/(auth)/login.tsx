@@ -1,73 +1,65 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image, KeyboardAvoidingView, Platform, ScrollView,Alert } from 'react-native';
-import { router } from 'expo-router';
-import { useAuth } from '@/context/AuthContext';
-import { Lock, Mail, Eye, EyeOff } from 'lucide-react-native';
-import { StatusBar } from 'expo-status-bar';
-import { colors } from '@/constants/colors';
-import { auth } from '../../firebaseConfig'; 
+import React, { useState } from "react";
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image, Alert, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
 import { useRouter } from "expo-router";
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-
+import { Lock, Mail, Eye, EyeOff, ChevronLeft } from "lucide-react-native";
+import { StatusBar } from "expo-status-bar";
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import { colors } from "@/constants/colors";
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-    
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const signIn = async () => {
+  const handleLogin = async () => {
     if (!email || !password) {
-        Alert.alert('Erreur', 'Veuillez remplir tous les champs');
-        return;
+      Alert.alert("Champs requis", "Veuillez remplir tous les champs.");
+      return;
     }
 
-    setLoading(true);
     try {
-        await signInWithEmailAndPassword(auth, email, password);
-        Alert.alert('Succès', 'Connexion réussie !');
-        router.push("../(tabs)");
-    } catch (error: any) {
-        Alert.alert('Erreur de connexion', error.message);
-    } finally {
-        setLoading(false);
-    }
-  };
-  
+      setLoading(true);
+      const auth = getAuth();
+      await signInWithEmailAndPassword(auth, email, password);
 
-  const navigateToRegister = () => {
-    router.push('/register');
+      Alert.alert("Bienvenue", "Connexion réussie !");
+      router.push("/(auth)/user-type"); // redirection après connexion
+    } catch (error: any) {
+      console.error("Erreur de connexion :", error);
+      Alert.alert("Erreur", error.message || "Une erreur est survenue.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === "ios" ? "padding" : "height"} 
       style={styles.container}
     >
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.headerContainer}>
-          <Image 
-            source={{ uri: 'https://images.pexels.com/photos/3184454/pexels-photo-3184454.jpeg' }} 
-            style={styles.headerImage} 
-          />
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <ChevronLeft size={24} color={colors.textDark} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Sign In</Text>
+          <View style={{ width: 24 }} />
+        </View>
+
+        <View style={styles.formContainer}>
           <View style={styles.logoContainer}>
             <Image 
-              source={{ uri: 'https://images.pexels.com/photos/5025512/pexels-photo-5025512.jpeg' }} 
-              style={styles.logo}
+              source={require("../../assets/images/logo-transparent.png")} 
+              style={styles.logo} 
             />
           </View>
-        </View>
-        
-        <View style={styles.formContainer}>
-          <Text style={styles.title}>Welcome Back</Text>
-          <Text style={styles.subtitle}>Sign in to continue to Smart Bus</Text>
-          
-          {error && <Text style={styles.errorText}>{error}</Text>}
+
+          <Text style={styles.subtitle}>
+            Welcome back to Smart Bus. Please login to continue.
+          </Text>
 
           <View style={styles.inputContainer}>
             <Mail size={20} color={colors.primary} style={styles.inputIcon} />
@@ -81,7 +73,7 @@ export default function LoginScreen() {
               onChangeText={setEmail}
             />
           </View>
-          
+
           <View style={styles.inputContainer}>
             <Lock size={20} color={colors.primary} style={styles.inputIcon} />
             <TextInput
@@ -93,7 +85,7 @@ export default function LoginScreen() {
               onChangeText={setPassword}
             />
             <TouchableOpacity 
-              style={styles.eyeIcon} 
+              style={styles.eyeIcon}
               onPress={() => setShowPassword(!showPassword)}
             >
               {showPassword ? 
@@ -102,25 +94,21 @@ export default function LoginScreen() {
               }
             </TouchableOpacity>
           </View>
-          
-          <TouchableOpacity style={styles.forgotPassword}>
-            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-          </TouchableOpacity>
-          
+
           <TouchableOpacity 
-            style={[styles.loginButton, isLoading && styles.loginButtonDisabled]} 
-            onPress={signIn}
-            disabled={isLoading}
+            style={[styles.loginButton, loading && styles.loginButtonDisabled]} 
+            onPress={handleLogin}
+            disabled={loading}
           >
             <Text style={styles.loginButtonText}>
-              {isLoading ? 'Signing In...' : 'Sign In'}
+              {loading ? "Logging in..." : "Sign In"}
             </Text>
           </TouchableOpacity>
-          
+
           <View style={styles.registerContainer}>
-            <Text style={styles.registerText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={navigateToRegister}>
-              <Text style={styles.registerLink}>Register</Text>
+            <Text style={styles.registerText}>Don't have an account?</Text>
+            <TouchableOpacity onPress={() => router.push("/register")}>
+              <Text style={styles.registerLink}>Create one</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -136,20 +124,30 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flexGrow: 1,
+    paddingBottom: 24,
   },
-  headerContainer: {
-    height: 200,
-    position: 'relative',
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 60,
+    paddingBottom: 20,
   },
-  headerImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
+  backButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 18,
+    color: colors.textDark,
+  },
+  formContainer: {
+    paddingHorizontal: 24,
   },
   logoContainer: {
-    position: 'absolute',
-    top: 100,
     alignSelf: 'center',
+    marginVertical: 24,
     backgroundColor: colors.white,
     borderRadius: 20,
     padding: 15,
@@ -164,31 +162,11 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 15,
   },
-  formContainer: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 48,
-    paddingBottom: 24,
-  },
-  title: {
-    fontFamily: 'Poppins-Bold',
-    fontSize: 24,
-    color: colors.textDark,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
   subtitle: {
     fontFamily: 'Poppins-Regular',
     fontSize: 16,
     color: colors.textLight,
-    marginBottom: 32,
-    textAlign: 'center',
-  },
-  errorText: {
-    fontFamily: 'Poppins-Regular',
-    fontSize: 14,
-    color: colors.error,
-    marginBottom: 16,
+    marginBottom: 24,
     textAlign: 'center',
   },
   inputContainer: {
@@ -214,22 +192,13 @@ const styles = StyleSheet.create({
   eyeIcon: {
     padding: 8,
   },
-  forgotPassword: {
-    alignSelf: 'flex-end',
-    marginBottom: 24,
-  },
-  forgotPasswordText: {
-    fontFamily: 'Poppins-Medium',
-    fontSize: 14,
-    color: colors.primary,
-  },
   loginButton: {
     backgroundColor: colors.primary,
     borderRadius: 12,
     height: 56,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginTop: 8,
   },
   loginButtonDisabled: {
     backgroundColor: colors.primaryLight,
@@ -253,5 +222,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-SemiBold',
     fontSize: 14,
     color: colors.primary,
+    marginLeft: 4,
   },
 });

@@ -34,7 +34,7 @@ export default function ProfileScreen() {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        if (!userId) return;
+        if (!uid ) return;
         const docRef = doc(db, 'Users', uid);
         const docSnap = await getDoc(docRef);
 
@@ -56,7 +56,7 @@ export default function ProfileScreen() {
     };
 
     fetchUserData();
-  }, [userId]);
+  }, [uid]);
 
   if (loading) {
     return (
