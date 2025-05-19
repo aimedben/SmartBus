@@ -1,5 +1,5 @@
 import React, { forwardRef, useEffect, useState } from 'react';
-import { View,TouchableOpacity, StyleSheet, Text, Image, Platform } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Text, Image, Platform } from 'react-native';
 import { colors } from '@/constants/colors';
 import { MapPin, Bus, LocateFixed } from 'lucide-react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
@@ -13,6 +13,7 @@ interface MapViewProps {
     status?: string;
     eta?: string;
     currentLocation?: string;
+    driverName?: string;   // Ajouté ici
   } | null;
   busRoutes: {
     id: string;
@@ -87,6 +88,14 @@ const MapViewComponent = forwardRef(({ busLocation, busRoutes, busStops, mapType
 
   return (
     <View style={styles.mapContainer}>
+      
+      {/* Table driver en haut à gauche */}
+      {busLocation?.driverName && (
+        <View style={styles.driverTable}>
+          <Text style={styles.driverText}>Driver: {busLocation.driverName}</Text>
+        </View>
+      )}
+
       <MapView
         ref={ref}
         style={styles.map}
@@ -139,26 +148,26 @@ const MapViewComponent = forwardRef(({ busLocation, busRoutes, busStops, mapType
           />
         ))}
       </MapView>
-      {userLocation && (
-  <View style={styles.locationButtonContainer}>
-  <TouchableOpacity
-    style={styles.locationButton}
-    onPress={() => {
-      if (ref && 'current' in ref && ref.current && userLocation) {
-        ref.current.animateToRegion({
-          latitude: userLocation.latitude,
-          longitude: userLocation.longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        });
-      }
-    }}
-  >
-    <LocateFixed color="white" size={24} />
-  </TouchableOpacity>
-</View>
-)}
 
+      {userLocation && (
+        <View style={styles.locationButtonContainer}>
+          <TouchableOpacity
+            style={styles.locationButton}
+            onPress={() => {
+              if (ref && 'current' in ref && ref.current && userLocation) {
+                ref.current.animateToRegion({
+                  latitude: userLocation.latitude,
+                  longitude: userLocation.longitude,
+                  latitudeDelta: 0.01,
+                  longitudeDelta: 0.01,
+                });
+              }
+            }}
+          >
+            <LocateFixed color="white" size={24} />
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 });
@@ -201,7 +210,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: colors.white,
-    
   },
   busMarkerInner: {
     width: 30,
@@ -210,7 +218,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     justifyContent: 'center',
     alignItems: 'center',
-    
   },
   busMarkerText: {
     fontFamily: 'Poppins-Bold',
@@ -228,7 +235,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 2,
     borderColor: colors.white,
-    
   },
   nativeStopMarker: {
     backgroundColor: colors.primary,
@@ -238,26 +244,40 @@ const styles = StyleSheet.create({
     borderColor: colors.white,
   },
   locationButtonContainer: {
-  position: 'absolute',
-  bottom: 30,
-  right: 20,
-  zIndex: 10,
-},
-locationButton: {
-  backgroundColor: colors.primary,
-  color: colors.white,
-  fontSize: 24,
-  padding: 12,
-  borderRadius: 30,
-  textAlign: 'center',
-  overflow: 'hidden',
-  elevation: 5,
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.3,
-  shadowRadius: 3,
-},
-
+    position: 'absolute',
+    bottom: 30,
+    right: 20,
+    zIndex: 10,
+  },
+  locationButton: {
+    backgroundColor: colors.primary,
+    color: colors.white,
+    fontSize: 24,
+    padding: 12,
+    borderRadius: 30,
+    textAlign: 'center',
+    overflow: 'hidden',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+  },
+  driverTable: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)', // fond semi-transparent
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    zIndex: 20,
+  },
+  driverText: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
 });
 
 export default MapViewComponent;

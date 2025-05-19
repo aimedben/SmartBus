@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -96,6 +96,16 @@ export default function UserTypeScreen() {
         createdAt: new Date(),
         children: [], // ✅ Ajout du tableau vide pour les IDs des enfants
       });
+      // Ajout dans la collection générale "users"
+const userGlobalRef = doc(db, "users", currentUser.uid);
+await setDoc(userGlobalRef, {
+  uid: currentUser.uid,
+  role: selectedType,
+  email: currentUser.email,
+  Name: currentUser.displayName,
+  createdAt: new Date(),
+});
+
 
 
       // Mise à jour du contexte ou état global

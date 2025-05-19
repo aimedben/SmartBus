@@ -63,12 +63,14 @@ export default function MapScreen() {
     <View style={styles.container}>
       <View style={styles.mapContainer}>
         <MapViewComponent
-          ref={mapRef}
-          busLocation={busLocation}
-          busRoutes={busRoutes}
-          busStops={busStops}
-          mapType={mapType}
-        />
+  ref={mapRef}
+  busLocation={busLocation}
+  busRoutes={busRoutes}
+  busStops={busStops}
+  mapType={mapType}
+  busLocations={busLocations}
+/>
+
 
         <View style={styles.mapControls}>
           <TouchableOpacity style={styles.mapControlButton} onPress={toggleMapType}>

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, collection, addDoc, doc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, doc, updateDoc, arrayUnion, setDoc } from 'firebase/firestore';
 import { app } from '@/firebaseConfig'; // ajuste ce chemin selon ton projet
 
 const AddChild = () => {
@@ -37,9 +37,10 @@ const AddChild = () => {
 
       // Mettre à jour le parent dans "parents"
       const parentRef = doc(db, 'parents', user.uid);
-      await updateDoc(parentRef, {
-        children: arrayUnion(childRef.id),
-      });
+await setDoc(parentRef, {
+  children: arrayUnion(childRef.id),
+}, { merge: true });
+
 
       Alert.alert('Succès', 'L\'enfant a été ajouté avec succès');
       router.back();
