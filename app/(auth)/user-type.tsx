@@ -1,4 +1,4 @@
-import React, { useEffect,useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from 'react-native';
 import { router } from 'expo-router';
@@ -10,10 +10,10 @@ import { db } from "../../firebaseConfig";
 import { doc, setDoc } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import AdminDashboard from '../RoleInterfaces/AdminDashboard';
-import ParentDashboard from '../RoleInterfaces/ParentDashboard';
-import DriverDashboard from '../RoleInterfaces/DriverDashboard';
-import ChildDashboard from '../RoleInterfaces/ChildDashboard';
+import AdminDashboard from '../../components/dashboards/AdminDashboard';
+import ParentDashboard from '../../components/dashboards/ParentDashboard';
+import DriverDashboard from '../../components/dashboards/DriverDashboard';
+import ChildDashboard from '../../components/dashboards/ChildDashboard';
 
 
 const userTypes = [
@@ -48,78 +48,81 @@ export default function UserTypeScreen() {
   const { setUserRole } = useAuth();
   const [loading, setLoading] = useState(false);
 
-  
+
   const handleContinue = async () => {
-  if (!selectedType) {
-    Alert.alert("Erreur", "Veuillez sélectionner un type d'utilisateur.");
-    return;
-  }
-
-  const auth = getAuth();
-  const currentUser = auth.currentUser;
-
-  if (!currentUser) {
-    Alert.alert("Erreur", "Aucun utilisateur connecté.");
-    return;
-  }
-
-  try {
-    // Choix de la collection selon le rôle
-    let collectionName = "";
-    switch (selectedType) {
-      case "parent":
-        collectionName = "parents";
-        break;
-      case "driver":
-        collectionName = "drivers";
-        break;
-      case "admin":
-        collectionName = "admins";
-        break;
-      case "student":
-        collectionName = "students";
-        break;
-      default:
-        collectionName = "users"; // valeur par défaut
-        break;
+    if (!selectedType) {
+      Alert.alert("Erreur", "Veuillez sélectionner un type d'utilisateur.");
+      return;
     }
 
-    // Référence au document dans la collection appropriée
-    const userDocRef = doc(db, collectionName, currentUser.uid);
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
 
-    // Enregistrement du document avec les infos basiques
-    await setDoc(userDocRef, {
-      uid: currentUser.uid,
-      role: selectedType,
-      email: currentUser.email,
-      createdAt: new Date(),
-    });
+    if (!currentUser) {
+      Alert.alert("Erreur", "Aucun utilisateur connecté.");
+      return;
+    }
 
-    // Mise à jour du contexte ou état global
-    setUserRole(selectedType);
+    try {
+      // Choix de la collection selon le rôle
+      let collectionName = "";
+      switch (selectedType) {
+        case "parent":
+          collectionName = "parents";
+          break;
+        case "driver":
+          collectionName = "drivers";
+          break;
+        case "admin":
+          collectionName = "admins";
+          break;
+        case "student":
+          collectionName = "students";
+          break;
+        default:
+          collectionName = "users"; // valeur par défaut
+          break;
+      }
 
-    // Navigation vers la page principale
-    router.replace('/(tabs)');
+      // Référence au document dans la collection appropriée
+      const userDocRef = doc(db, collectionName, currentUser.uid);
 
-  } catch (error) {
-    console.error("Erreur lors de l'enregistrement du rôle :", error);
-    Alert.alert("Erreur", "Impossible d'enregistrer le rôle utilisateur.");
-  }
-};
+      // Enregistrement du document avec les infos basiques
+      await setDoc(userDocRef, {
+        uid: currentUser.uid,
+        role: selectedType,
+        email: currentUser.email,
+        Name: currentUser.displayName,
+        createdAt: new Date(),
+        children: [], // ✅ Ajout du tableau vide pour les IDs des enfants
+      });
+
+
+      // Mise à jour du contexte ou état global
+      setUserRole(selectedType);
+
+      // Navigation vers la page principale
+      router.replace('/(tabs)');
+
+    } catch (error) {
+      console.error("Erreur lors de l'enregistrement du rôle :", error);
+      Alert.alert("Erreur", "Impossible d'enregistrer le rôle utilisateur.");
+    }
+  };
 
 
   useEffect(() => {
     const fetchUserRole = async () => {
       const auth = getAuth();
       const currentUser = auth.currentUser;
-  
+
       if (!currentUser) return;
-  
+
       try {
         const utilisateurRef = collection(db, "Users"); // Change "Users" selon ta collection
         const q = query(utilisateurRef, where("uid", "==", currentUser.uid));
         const snapshot = await getDocs(q);
-  
+
         if (!snapshot.empty) {
           const userData = snapshot.docs[0].data();
           if (userData.role) {
@@ -130,18 +133,18 @@ export default function UserTypeScreen() {
         console.error("Erreur lors du chargement du rôle utilisateur :", error);
       }
     };
-  
+
     fetchUserRole();
   }, []);
- 
-    
+
+
 
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton} 
+        <TouchableOpacity
+          style={styles.backButton}
           onPress={() => router.back()}
         >
           <ChevronLeft size={24} color={colors.textDark} />
@@ -149,12 +152,12 @@ export default function UserTypeScreen() {
         <Text style={styles.headerTitle}>Select User Type</Text>
         <View style={{ width: 24 }} /> {/* Empty view for alignment */}
       </View>
-      
+
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <Text style={styles.subtitle}>
           Please select your role in the Smart Bus system
         </Text>
-        
+
         <View style={styles.cardsContainer}>
           {userTypes.map((type) => (
             <TouchableOpacity
@@ -166,9 +169,9 @@ export default function UserTypeScreen() {
               onPress={() => setSelectedType(type.id)}
             >
               <View style={styles.cardImageContainer}>
-                <Image 
-                  source={{ uri: type.icon }} 
-                  style={styles.cardImage} 
+                <Image
+                  source={{ uri: type.icon }}
+                  style={styles.cardImage}
                 />
               </View>
               <View style={styles.cardContent}>
@@ -187,13 +190,13 @@ export default function UserTypeScreen() {
           ))}
         </View>
       </ScrollView>
-      
+
       <View style={styles.footer}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[
             styles.continueButton,
             !selectedType && styles.continueButtonDisabled
-          ]} 
+          ]}
           onPress={handleContinue}
           disabled={!selectedType}
         >
