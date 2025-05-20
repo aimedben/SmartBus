@@ -130,7 +130,7 @@ const handleRegister = async () => {
 
         <View style={styles.formContainer}>
           <View style={styles.logoContainer}>
-            <Image source={require('../../assets/images/logo-transparent.png')} style={styles.logo} />
+            <Image source={require('../../assets/images/busdriver.jpg')} style={styles.logo} />
           </View>
 
           <Text style={styles.subtitle}>Join Smart Bus to make school transportation safer</Text>

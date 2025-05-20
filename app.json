@@ -17,7 +17,10 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "This app uses your location to show the distance between you and the bus.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "This app uses your location to show the distance between you and the bus even when the app is in the background.",
-        "UIBackgroundModes": ["location", "fetch"]
+        "UIBackgroundModes": [
+          "location",
+          "fetch"
+        ]
       }
     },
     "android": {
@@ -64,7 +67,8 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Allow Bus to use your location to show the distance between you and the bus."
         }
-      ]
+      ],
+      "expo-barcode-scanner"
     ],
     "experiments": {
       "typedRoutes": true

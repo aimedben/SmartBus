@@ -52,7 +52,7 @@ export default function LoginScreen() {
         <View style={styles.formContainer}>
           <View style={styles.logoContainer}>
             <Image 
-              source={require("../../assets/images/logo-transparent.png")} 
+              source={require("../../assets/images/busdriver.jpg")} 
               style={styles.logo} 
             />
           </View>
