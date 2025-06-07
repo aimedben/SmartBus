@@ -1,15 +1,20 @@
 {
   "expo": {
-    "name": "Bus",
-    "slug": "Bus",
+    "name": "SmartBus",
+    "slug": "SmartBus",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/logo-transparent.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "projectId": "smartbus-5d940",
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.rxfik.Bus",
       "config": {
         "googleMapsApiKey": "AIzaSyALgj3mKP5KQEBJDMOMeWIn8gd6-x6Pwkw",
         "usesNonExemptEncryption": false
@@ -19,16 +24,21 @@
         "NSLocationAlwaysAndWhenInUseUsageDescription": "This app uses your location to show the distance between you and the bus even when the app is in the background.",
         "UIBackgroundModes": [
           "location",
-          "fetch"
-        ]
-      }
+          "fetch",
+          "remote-notification"
+        ],
+        "NSUserNotificationAlertStyle": "alert"
+      },
+      "usesAppleSignIn": false
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
+      "useNextNotificationsApi": true,
       "package": "com.rxfik.Bus",
+      "versionCode": 1,
       "config": {
         "googleMaps": {
           "apiKey": "AIzaSyALgj3mKP5KQEBJDMOMeWIn8gd6-x6Pwkw"
@@ -37,11 +47,11 @@
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
-        "POST_NOTIFICATIONS",
         "ACCESS_BACKGROUND_LOCATION",
-        "RECEIVE_BOOT_COMPLETED",
+        "FOREGROUND_SERVICE",
+        "POST_NOTIFICATIONS",
         "WAKE_LOCK",
-        "FOREGROUND_SERVICE"
+        "RECEIVE_BOOT_COMPLETED"
       ],
       "googleServicesFile": "./google-services.json"
     },
@@ -68,10 +78,37 @@
           "locationAlwaysAndWhenInUsePermission": "Allow Bus to use your location to show the distance between you and the bus."
         }
       ],
-      "expo-barcode-scanner"
+      "expo-barcode-scanner",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#1E90FF",
+          "mode": "production",
+          "sounds": ["./assets/sounds/notification.wav"]
+        }
+      ]
     ],
     "experiments": {
-      "typedRoutes": true
+      "typedRoutes": true,
+      "turboModules": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "smartbus-5d940"
+      },
+      "router": {
+        "origin": false
+      }
+    },
+    "androidStatusBar": {
+      "backgroundColor": "#FFFFFF",
+      "translucent": false
+    },
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFFFF"
     }
   }
 }

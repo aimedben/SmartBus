@@ -1,10 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image, Alert, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
 import { useRouter } from "expo-router";
 import { Lock, Mail, Eye, EyeOff, ChevronLeft } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import { colors } from "@/constants/colors";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../../firebaseConfig";
+import { useAuth } from "@/context/AuthContext";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -12,6 +15,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const { setUserRole } = useAuth();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -22,10 +26,19 @@ export default function LoginScreen() {
     try {
       setLoading(true);
       const auth = getAuth();
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
 
-      Alert.alert("Bienvenue", "Connexion réussie !");
-      router.push("/(auth)/user-type"); // redirection après connexion
+      // Récupérer le rôle depuis Firestore
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        if (userData.role) {
+          setUserRole(userData.role);
+          router.replace("/(tabs)");
+        }
+      } 
     } catch (error: any) {
       console.error("Erreur de connexion :", error);
       Alert.alert("Erreur", error.message || "Une erreur est survenue.");
@@ -33,6 +46,29 @@ export default function LoginScreen() {
       setLoading(false);
     }
   };
+
+  // Vérifier si l'utilisateur est déjà connecté au montage du composant
+  useEffect(() => {
+    const auth = getAuth();
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        try {
+          const userDoc = await getDoc(doc(db, "users", user.uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            if (userData.role) {
+              setUserRole(userData.role);
+              router.replace("/(tabs)");
+            }
+          }
+        } catch (error) {
+          console.error("Erreur de vérification du rôle :", error);
+        }
+      }
+    });
+
+    return unsubscribe;
+  }, []);
 
   return (
     <KeyboardAvoidingView 

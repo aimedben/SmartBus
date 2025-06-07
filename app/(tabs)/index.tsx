@@ -34,7 +34,6 @@ export default function HomeScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <DashboardHeader userName={userName} userRole={userRole} />
       <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
         {renderDashboard()}
       </ScrollView>

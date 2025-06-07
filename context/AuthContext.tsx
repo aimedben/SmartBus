@@ -1,23 +1,30 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { getAuth, signInWithEmailAndPassword, signOut as firebaseSignOut, onAuthStateChanged, User } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../firebaseConfig';
 import { router } from 'expo-router';
 
 type UserRole = 'parent' | 'driver' | 'admin' | 'student' | null;
 
 interface AuthContextType {
   isAuthenticated: boolean;
+  user: User | null;
   userRole: UserRole;
   userName: string;
+  loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signOut: () => void;
+  signOut: () => Promise<void>;
   setUserRole: (role: UserRole) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
+  user: null,
   userRole: null,
   userName: '',
+  loading: true,
   signIn: async () => {},
-  signOut: () => {},
+  signOut: async () => {},
   setUserRole: () => {},
 });
 
@@ -27,65 +34,100 @@ export function useAuth() {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<UserRole>(null);
   const [userName, setUserName] = useState('');
-
-  // Mock user data - in a real app, this would come from backend
-  const mockUsers = {
-    'parent@example.com': { name: 'Ahmed Lakhdar', role: 'parent' },
-    'driver@example.com': { name: 'Mohamed Krim', role: 'driver' },
-    'admin@example.com': { name: 'Sara Taleb', role: 'admin' },
-    'student@example.com': { name: 'Yacine Bouali', role: 'student' },
-  };
+  const [loading, setLoading] = useState(true);
+  const auth = getAuth();
 
   useEffect(() => {
-    // Check if user is already logged in (e.g., from AsyncStorage)
-    const checkAuthentication = async () => {
-      // In a real app, check stored credentials
-      const storedUser = false; // Mock - no stored user
-
-      if (storedUser) {
-        setIsAuthenticated(true);
-        // Redirect to main app
-        router.replace('/(tabs)');
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          // Récupérer les infos supplémentaires depuis Firestore
+          const userDoc = await getDoc(doc(db, "users", user.uid));
+          
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            setUser(user);
+            setIsAuthenticated(true);
+            setUserRole(userData.role || null);
+            setUserName(userData.name || user.email || '');
+            
+            // Redirection vers le dashboard approprié
+            router.replace('/(tabs)');
+          } else {
+            // Si l'utilisateur n'a pas de document dans Firestore
+            await firebaseSignOut(auth);
+            router.replace('/login');
+          }
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+          await firebaseSignOut(auth);
+          router.replace('/login');
+        }
       } else {
-        // Redirect to login
+        setIsAuthenticated(false);
+        setUser(null);
+        setUserRole(null);
+        setUserName('');
         router.replace('/login');
       }
-    };
+      setLoading(false);
+    });
 
-    checkAuthentication();
+    return unsubscribe;
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    // Mock authentication
-    return new Promise<void>((resolve, reject) => {
-      setTimeout(() => {
-        // Check if user exists in our mock data
-        const user = mockUsers[email as keyof typeof mockUsers];
-        
-        if (user && password === 'password') { // Simple password check for demo
-          setIsAuthenticated(true);
-          setUserRole(user.role as UserRole);
-          setUserName(user.name);
-          resolve();
-        } else {
-          reject(new Error('Invalid credentials'));
-        }
-      }, 1000);
-    });
+    try {
+      setLoading(true);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // Récupérer les infos supplémentaires depuis Firestore
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        setUser(user);
+        setIsAuthenticated(true);
+        setUserRole(userData.role || null);
+        setUserName(userData.name || user.email || '');
+        router.replace('/(tabs)');
+      } else {
+        throw new Error("User document not found in Firestore");
+      }
+    } catch (error) {
+      console.error("Sign in error:", error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const signOut = () => {
-    setIsAuthenticated(false);
-    setUserRole(null);
-    router.replace('/login');
+  const signOut = async () => {
+    try {
+      setLoading(true);
+      await firebaseSignOut(auth);
+      setIsAuthenticated(false);
+      setUser(null);
+      setUserRole(null);
+      setUserName('');
+      router.replace('/login');
+    } catch (error) {
+      console.error("Sign out error:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const value = {
     isAuthenticated,
+    user,
     userRole,
     userName,
+    loading,
     signIn,
     signOut,
     setUserRole,

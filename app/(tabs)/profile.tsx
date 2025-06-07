@@ -1,175 +1,220 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, ActivityIndicator, Alert
+  View,
+  Text,
+  Image,
+  StyleSheet,
+  ActivityIndicator,
+  TouchableOpacity,
+  Alert,
+  ScrollView,
 } from 'react-native';
+import { getFirestore, collection, query, where, getDocs } from 'firebase/firestore';
+import { getAuth, signOut } from 'firebase/auth';
+import { app } from '../../firebaseConfig'; // 🔁 adapte le chemin
 import { useAuth } from '@/context/AuthContext';
 import { colors } from '@/constants/colors';
 import { LogOut } from 'lucide-react-native';
-import ScreenHeader from '@/components/ScreenHeader';
-import { db } from '../../firebaseConfig';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { router } from 'expo-router';
 
-export default function ProfileScreen() {
-  const { userRole, uid, signOut } = useAuth();
-  const [userData, setUserData] = useState({
-    nom: '',
-    email: '',
-    phone: ''
-  });
+
+
+const Profile = ({ navigation }: any) => {
+  const [driver, setDriver] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  const getUserRoleTitle = () => {
-    switch (userRole) {
-      case 'parent': return 'Parent';
-      case 'driver': return 'Chauffeur';
-      case 'admin': return 'Administrateur';
-      case 'student': return 'Étudiant';
-      default: return 'Utilisateur';
-    }
-  };
+  const db = getFirestore(app);
+  const auth = getAuth(app);
+  const { userRole, uid, signOut } = useAuth();
 
-  const fetchUserData = async () => {
+  useEffect(() => {
+  const fetchDriverData = async () => {
+    const user = auth.currentUser;
+
+    if (!user) {
+      console.log('Utilisateur non connecté');
+      setLoading(false);
+      return;
+    }
+
     try {
-      if (!uid) {
-        console.warn('UID manquant, impossible de récupérer les données utilisateur.');
-        return;
+      // Récupérer le rôle depuis le contexte ou depuis une collection centrale "users"
+      let role = userRole;
+
+      // Si userRole n'est pas défini, on peut récupérer le rôle depuis une collection "users"
+      if (!role) {
+        const usersRef = collection(db, 'Users');
+        const qUser = query(usersRef, where('uid', '==', user.uid));
+        const userSnapshot = await getDocs(qUser);
+        if (!userSnapshot.empty) {
+          role = userSnapshot.docs[0].data().role;
+        }
       }
 
-      const userRef = doc(db, 'parents', uid);
-      const userSnap = await getDoc(userRef);
-
-      if (userSnap.exists()) {
-        const data = userSnap.data();
-        console.log('Données utilisateur récupérées :', data);
-        setUserData({
-          nom: data.fullName || '',
-          email: data.email || '',
-          phone: data.contact || ''
-        });
+      let collectionName = '';
+      if (role === 'admin') {
+        collectionName = 'Admins';
+      } else if (role === 'parent') {
+        collectionName = 'Parents';
       } else {
-        console.warn(`Aucun utilisateur trouvé avec l'UID : ${uid}`);
+        collectionName = 'Users'; // Par défaut ou autres rôles
+      }
+
+      const roleRef = collection(db, collectionName);
+      const q = query(roleRef, where('uid', '==', user.uid));
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        const data = querySnapshot.docs[0].data();
+        setDriver(data);
+      } else {
+        console.log(`Aucun profil trouvé dans ${collectionName}`);
       }
     } catch (error) {
-      console.error('Erreur lors de la récupération des données :', error);
-      Alert.alert('Erreur', 'Impossible de récupérer les informations du profil.');
+      console.error('Erreur récupération :', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSaveProfile = async (updatedData: any) => {
+  fetchDriverData();
+}, []);
+
+
+  const handleLogout = async () => {
     try {
-      if (!uid) return;
-      const userRef = doc(db, 'Users', uid);
-      await updateDoc(userRef, updatedData);
-      setUserData(prev => ({ ...prev, ...updatedData }));
-      Alert.alert('Succès', 'Profil mis à jour avec succès');
+      await signOut(auth);
+      Alert.alert('Déconnecté', 'Vous avez été déconnecté.');
+      // navigation.replace('Login');
     } catch (error) {
-      console.error('Erreur lors de la mise à jour :', error);
-      Alert.alert('Erreur', 'Échec de la mise à jour du profil');
+      console.error('Erreur de déconnexion :', error);
     }
   };
 
-  useEffect(() => {
-    fetchUserData();
-  }, [uid]);
+  const handleEdit = () => {
+    // Redirige vers l'écran d'édition avec les infos à pré-remplir
+    navigation.navigate('EditProfile', { userData: driver });
+  };
 
   if (loading) {
+    return <ActivityIndicator size="large" color="#6200ee" style={{ flex: 1 }} />;
+  }
+
+  if (!driver) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={styles.container}>
+        <Text style={styles.text}>Aucun profil trouvé.</Text>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Text style={styles.logoutText}>Se déconnecter</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <ScreenHeader title="Profil" />
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.profileHeader}>
-          <Image 
-            source={require('../../assets/images/imgprofile.png')} 
-            style={styles.profileImage} 
-          />
-          <Text style={styles.profileName}>{userData.nom || 'Utilisateur'}</Text>
-          <Text style={styles.profileRole}>{getUserRoleTitle()}</Text>
+    <ScrollView contentContainerStyle={styles.container}>
+      <View style={styles.card}>
+        <Image source={{ uri: driver.profileImage }} style={styles.image} />
+        <Text style={styles.name}>{driver.fullName}</Text>
+        <Text style={styles.label}>Email</Text>
+        <Text style={styles.value}>{driver.email}</Text>
+        <Text style={styles.label}>Contact</Text>
+        <Text style={styles.value}>{driver.Contact}</Text>
+        <Text style={styles.label}>Rôle</Text>
+        <Text style={styles.value}>{driver.role}</Text>
 
-          <TouchableOpacity 
-            style={styles.editProfileButton} 
-            onPress={() => router.push({
-              pathname: '/EditProfile',
-              params: {
-                currentData: JSON.stringify(userData),
-                onSave: handleSaveProfile
-              }
-            })}
-          >
-            <Text style={styles.editProfileButtonText}>Modifier le profil</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.infoContainer}>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Email :</Text>
-            <Text style={styles.infoValue}>{userData.email || 'Non renseigné'}</Text>
-          </View>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>Téléphone :</Text>
-            <Text style={styles.infoValue}>{userData.phone || 'Non renseigné'}</Text>
-          </View>
-        </View>
-
-        {userRole === 'parent' && (
-          <View style={styles.actionsContainer}>
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => router.push('/childs')}
-            >
-              <Text style={styles.actionButtonText}>Voir mes enfants</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => router.push('/AddChild')}
-            >
-              <Text style={styles.actionButtonText}>Ajouter un enfant</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        <TouchableOpacity style={styles.editButton} onPress={handleEdit}>
+          <Text style={styles.editText}>✏️ Modifier les informations</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity style={styles.logoutButton} onPress={signOut}>
-          <LogOut size={20} color={colors.error} />
+          <LogOut size={20} color={colors.white} />
           <Text style={styles.logoutText}>Se déconnecter</Text>
         </TouchableOpacity>
 
         <View style={styles.versionContainer}>
           <Text style={styles.versionText}>Smart Bus v1.0.0</Text>
         </View>
-      </ScrollView>
-    </View>
+
+      </View>
+    </ScrollView>
   );
-}
+};
+
+export default Profile;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  scrollView: { flex: 1 },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  profileHeader: { alignItems: 'center', padding: 24, borderBottomWidth: 1, borderBottomColor: colors.border },
-  profileImage: { width: 100, height: 100, borderRadius: 50, marginBottom: 16 },
-  profileName: { fontSize: 24, fontWeight: '600', color: colors.textDark },
-  profileRole: { fontSize: 16, color: colors.textLight, marginBottom: 12 },
-  editProfileButton: { backgroundColor: colors.primaryLight, padding: 12, borderRadius: 8, marginTop: 8 },
-  editProfileButtonText: { color: colors.primary, fontWeight: '600' },
-  infoContainer: { padding: 20 },
-  infoItem: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
-  infoLabel: { fontWeight: '600', color: colors.textDark },
-  infoValue: { color: colors.textLight },
-  actionsContainer: { paddingHorizontal: 20, marginTop: 10 },
-  actionButton: { backgroundColor: colors.primaryLight, padding: 15, borderRadius: 8, alignItems: 'center', marginBottom: 12 },
-  actionButtonText: { color: colors.primary, fontWeight: '600' },
-  logoutButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 15, margin: 20, borderWidth: 1, borderColor: colors.errorLight, borderRadius: 8 },
-  logoutText: { color: colors.error, marginLeft: 10, fontWeight: '600' },
-  versionContainer: { alignItems: 'center', paddingVertical: 16 },
+  container: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    backgroundColor: '#f2f2f2',
+    flexGrow: 1,
+  },
+  card: {
+    backgroundColor: '#fff',
+    width: '90%',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 5,
+  },
+  image: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: '#6200ee',
+  },
+  name: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    color: '#333',
+  },
+  label: {
+    fontSize: 14,
+    color: '#888',
+    alignSelf: 'flex-start',
+    marginTop: 12,
+  },
+  value: {
+    fontSize: 16,
+    fontWeight: '500',
+    alignSelf: 'flex-start',
+    color: '#444',
+  },
+  editButton: {
+    marginTop: 24,
+    backgroundColor: '#4CAF50',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    width: '100%',
+    alignItems: 'center',
+  },
+  editText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  logoutButton: {
+    marginTop: 16,
+    backgroundColor: '#d32f2f',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    width: '100%',
+    alignItems: 'center',
+  },
+  logoutText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  versionContainer: { alignItems: 'center', paddingVertical: 18 },
   versionText: { fontSize: 14, color: colors.textLight }
 });

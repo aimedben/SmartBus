@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, Alert, FlatList, Platform } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import * as Location from 'expo-location';
@@ -36,6 +36,8 @@ const MapScreen: React.FC = () => {
   const [showDriverList, setShowDriverList] = useState(false);
   const mapRef = useRef<MapView>(null);
   const db = getFirestore(app);
+
+  const selectedBusData = useMemo(() => buses.find(b => b.id === selectedBus), [buses, selectedBus]);
 
   // Charger les données des bus et des arrêts
   useEffect(() => {
@@ -254,7 +256,7 @@ const MapScreen: React.FC = () => {
           ref={mapRef}
           style={styles.map}
           initialRegion={initialRegion}
-          showsUserLocation={true}
+          showsUserLocation={false}
           mapType={mapType}
           onPress={handleMapPress}
           scrollEnabled={!isSelectingPath}
@@ -268,7 +270,7 @@ const MapScreen: React.FC = () => {
               key={bus.id}
               coordinate={{ latitude: bus.latitude, longitude: bus.longitude }}
               title={bus.fullName}
-              description={`Bus ID: ${bus.id}`}
+              description={`Bus ID: ${bus.id}, Owner ID: ${bus.busID}`}
               onPress={(e) => {
                 if (!isSelectingPath) {
                   e.stopPropagation();
@@ -491,7 +493,7 @@ const styles = StyleSheet.create({
   map: { flex: 1 },
   mapControls: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 60 : 40,
+    top: Platform.OS === 'ios' ? 60 : 80,
     right: 16,
     flexDirection: 'column',
     gap: 8,

@@ -5,7 +5,7 @@ import { Bell, Search } from 'lucide-react-native';
 
 interface DashboardHeaderProps {
   userName: string;
-  userRole: string;
+  userRole?: string;
 }
 
 export default function DashboardHeader({ userName, userRole }: DashboardHeaderProps) {
@@ -34,12 +34,12 @@ export default function DashboardHeader({ userName, userRole }: DashboardHeaderP
   return (
     <View style={styles.container}>
       <View style={styles.content}>
-        <View>
+        <View style={styles.hour}>
           <Text style={styles.greeting}>{getGreeting()},</Text>
           <Text style={styles.name}>{userName || 'User'}</Text>
           <Text style={styles.role}>{getRoleText()}</Text>
         </View>
-        
+
         <View style={styles.actions}>
           <TouchableOpacity style={styles.iconButton}>
             <Search size={24} color={colors.textDark} />
@@ -55,10 +55,9 @@ export default function DashboardHeader({ userName, userRole }: DashboardHeaderP
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.white,
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    paddingBottom: 16,
-    paddingHorizontal: 16,
+    //top: 10,
+    padding: 16,
+    backgroundColor: colors.background,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
@@ -67,32 +66,28 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  hour: {
+    top: 10,
+  },
   greeting: {
-    fontFamily: 'Poppins-Regular',
-    fontSize: 14,
-    color: colors.textLight,
+    fontSize: 18,
+    color: colors.textDark,
   },
   name: {
-    fontFamily: 'Poppins-Bold',
-    fontSize: 20,
+    fontSize: 22,
+    fontWeight: 'bold',
     color: colors.textDark,
-    marginBottom: 4,
   },
   role: {
-    fontFamily: 'Poppins-Regular',
-    fontSize: 14,
-    color: colors.primary,
+    fontSize: 16,
+    color: colors.textLight,
   },
   actions: {
     flexDirection: 'row',
+    gap: Platform.OS === 'web' ? 16 : 12,
   },
   iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.backgroundLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
 });
