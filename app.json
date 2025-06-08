@@ -1,6 +1,7 @@
 {
   "expo": {
     "name": "SmartBus",
+    "owner": "aimedbens",
     "slug": "SmartBus",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -51,7 +52,10 @@
         "FOREGROUND_SERVICE",
         "POST_NOTIFICATIONS",
         "WAKE_LOCK",
-        "RECEIVE_BOOT_COMPLETED"
+        "RECEIVE_BOOT_COMPLETED",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.CAMERA"
       ],
       "googleServicesFile": "./google-services.json"
     },
@@ -85,21 +89,15 @@
           "icon": "./assets/images/notification-icon.png",
           "color": "#1E90FF",
           "mode": "production",
-          "sounds": ["./assets/sounds/notification.wav"]
+          "sounds": [
+            "./assets/sounds/notification.wav"
+          ]
         }
       ]
     ],
     "experiments": {
       "typedRoutes": true,
       "turboModules": true
-    },
-    "extra": {
-      "eas": {
-        "projectId": "smartbus-5d940"
-      },
-      "router": {
-        "origin": false
-      }
     },
     "androidStatusBar": {
       "backgroundColor": "#FFFFFF",
@@ -109,6 +107,14 @@
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#FFFFFF"
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "3fc37fff-4416-4b2d-a04b-50711ec0a63a"
+      }
     }
   }
 }

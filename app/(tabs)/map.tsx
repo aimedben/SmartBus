@@ -11,6 +11,7 @@ import { getBusRoutes, getBusStops } from '@/utils/mockData';
 
 interface Bus {
   id: string;
+  busId: string;
   fullName: string;
   latitude: number;
   longitude: number;
@@ -39,40 +40,75 @@ const MapScreen: React.FC = () => {
 
   const selectedBusData = useMemo(() => buses.find(b => b.id === selectedBus), [buses, selectedBus]);
 
-  // Charger les données des bus et des arrêts
+  //suiver localisation en temps réél
   useEffect(() => {
-    setBusRoutes(getBusRoutes());
-    setBusStops(getBusStops());
+  // Ne rien faire si l'utilisateur est admin
+  if (userRole === 'admin') return;
 
-    const unsubscribe = onSnapshot(collection(db, 'Drivers'), (snapshot) => {
-      const busList: Bus[] = [];
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        if (data.location?.latitude && data.location?.longitude) {
-          busList.push({
-            id: doc.id,
-            fullName: data.fullName || `Driver ${doc.id}`,
-            latitude: data.location.latitude,
-            longitude: data.location.longitude,
-            currentLocation: data.currentLocation || 'En route',
-            status: data.status || 'en-route',
-            eta: data.eta || '7 mins',
-            routeProgress: data.routeProgress || 45,
-            route: data.route || [],
-          });
-        }
-      });
-      setBuses(busList);
-      if (!selectedBus && busList.length > 0) {
-        setSelectedBus(busList[0].id);
-      }
-    }, (error) => {
-      console.error('Erreur lors de la récupération des chauffeurs:', error);
-      Alert.alert('Erreur', 'Impossible de charger les données des chauffeurs');
+  let locationSubscription: Location.LocationSubscription;
+
+  const startWatching = async () => {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') return;
+
+    // Obtenir la position actuelle
+    const location = await Location.getCurrentPositionAsync({});
+    setUserLocation({
+      latitude: location.coords.latitude,
+      longitude: location.coords.longitude,
     });
 
-    return () => unsubscribe();
-  }, []);
+    // Suivre les changements de position
+    locationSubscription = await Location.watchPositionAsync(
+      { accuracy: Location.Accuracy.High },
+      (newLocation) => {
+        setUserLocation({
+          latitude: newLocation.coords.latitude,
+          longitude: newLocation.coords.longitude,
+        });
+      }
+    );
+  };
+
+  startWatching();
+
+  return () => {
+    if (locationSubscription) locationSubscription.remove();
+  };
+}, [userRole]); // Ajoutez userRole comme dépendance
+
+  // Charger les données des bus et des arrêts
+  useEffect(() => {
+  const unsubscribe = onSnapshot(collection(db, 'Drivers'), (snapshot) => {
+    const busList: Bus[] = [];
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      if (data.location?.latitude && data.location?.longitude) {
+        busList.push({
+          id: doc.id, // ID du document (Driver ID)
+          busId: data.busId || '###', // Récupération du champ busId
+          fullName: data.fullName || `Driver ${doc.id}`,
+          latitude: data.location.latitude,
+          longitude: data.location.longitude,
+          currentLocation: data.currentLocation || 'En route',
+          status: data.status || 'en-route',
+          eta: data.eta || '7 mins',
+          routeProgress: data.routeProgress || 45,
+          route: data.route || [],
+        });
+      }
+    });
+    setBuses(busList);
+    if (!selectedBus && busList.length > 0) {
+      setSelectedBus(busList[0].id);
+    }
+  }, (error) => {
+    console.error('Erreur lors de la récupération des chauffeurs:', error);
+    Alert.alert('Erreur', 'Impossible de charger les données des chauffeurs');
+  });
+
+  return () => unsubscribe();
+}, []);
 
   // Obtenir la localisation de l'utilisateur
   useEffect(() => {
@@ -109,6 +145,7 @@ const MapScreen: React.FC = () => {
     }, 50000);
     return () => clearInterval(interval);
   }, []);
+  
 
   // Centrer la carte sur le bus sélectionné
   const handleCenterMap = useCallback(() => {
@@ -209,25 +246,25 @@ const MapScreen: React.FC = () => {
 
   // Rendu d'un élément de bus dans la liste
   const renderBusItem = ({ item }: { item: Bus }) => (
-    <TouchableOpacity
-      style={[styles.busSelectorOption, selectedBus === item.id && styles.busSelectorOptionActive]}
-      onPress={() => {
-        setSelectedBus(item.id);
-        mapRef.current?.animateToRegion({
-          latitude: item.latitude,
-          longitude: item.longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        });
-      }}
+  <TouchableOpacity
+    style={[styles.busSelectorOption, selectedBus === item.id && styles.busSelectorOptionActive]}
+    onPress={() => {
+      setSelectedBus(item.id);
+      mapRef.current?.animateToRegion({
+        latitude: item.latitude,
+        longitude: item.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      });
+    }}
+  >
+    <Text
+      style={[styles.busSelectorText, selectedBus === item.id && styles.busSelectorTextActive]}
     >
-      <Text
-        style={[styles.busSelectorText, selectedBus === item.id && styles.busSelectorTextActive]}
-      >
-        Bus #{item.id}
-      </Text>
-    </TouchableOpacity>
-  );
+      Bus #{item.busId} {/* Utilisation de busId au lieu de id */}
+    </Text>
+  </TouchableOpacity>
+);
 
   // Rendu d'un élément de chauffeur dans la liste
   const renderDriverItem = ({ item }: { item: Bus }) => (
@@ -257,6 +294,7 @@ const MapScreen: React.FC = () => {
           style={styles.map}
           initialRegion={initialRegion}
           showsUserLocation={false}
+          showsUserLocation={true}
           mapType={mapType}
           onPress={handleMapPress}
           scrollEnabled={!isSelectingPath}
@@ -270,7 +308,7 @@ const MapScreen: React.FC = () => {
               key={bus.id}
               coordinate={{ latitude: bus.latitude, longitude: bus.longitude }}
               title={bus.fullName}
-              description={`Bus ID: ${bus.id}, Owner ID: ${bus.busID}`}
+              description={`Bus ID: ${bus.busId}`}
               onPress={(e) => {
                 if (!isSelectingPath) {
                   e.stopPropagation();
@@ -418,9 +456,8 @@ const MapScreen: React.FC = () => {
         <TouchableOpacity style={styles.detailsHeader} onPress={() => setShowDetails(!showDetails)}>
           <View style={styles.detailsHeaderLeft}>
             <Bus size={20} color={colors.primary} />
-            <Text style={styles.busNumber}>
-              Bus #{selectedBus || 'N/A'}
-            </Text>
+            <Text style={styles.busNumber}>Bus #{selectedBusData?.busId || 'N/A'}</Text>
+
           </View>
           <ChevronDown
             size={20}
