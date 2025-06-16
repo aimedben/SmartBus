@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, RefreshControl, ActivityIndicator } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
-import { colors } from '@/constants/colors';
+import { colors } from '@/constants/Colors';
 import { Bus, Calendar, Clock, ChevronRight, Info, MapPin, User, Users } from 'lucide-react-native';
 import DashboardHeader from '@/components/DashboardHeader';
 import { getBusStatus, getStudents, getUpcomingTrips } from '@/utils/mockData';

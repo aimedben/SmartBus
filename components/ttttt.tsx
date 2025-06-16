@@ -11,7 +11,7 @@ import * as Location from 'expo-location';
 import { getFirestore, collection, onSnapshot } from 'firebase/firestore';
 import { app } from '../firebaseConfig';
 import { LocateFixed } from 'lucide-react-native';
-import { colors } from '@/constants/colors'; // si tu as un fichier de couleurs
+import { colors } from '@/constants/Colors'; // si tu as un fichier de couleurs
 
 interface Driver {
   id: string;

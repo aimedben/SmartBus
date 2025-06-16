@@ -13,7 +13,7 @@ import * as Location from 'expo-location';
 import { getFirestore, collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { app } from '../firebaseConfig';
 import { LocateFixed, Layers, Plus, X } from 'lucide-react-native';
-import { colors } from '@/constants/colors';
+import { colors } from '@/constants/Colors';
 
 interface Driver {
   id: string;

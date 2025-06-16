@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
-import { colors } from '@/constants/colors';
+import { colors } from '@/constants/Colors';
 import { CircleAlert as AlertCircle, Bell, CircleCheck as CheckCircle, Info as InfoIcon, MapPin } from 'lucide-react-native';
 import { getNotifications } from '@/utils/mockData';
 import ScreenHeader from '@/components/ScreenHeader';

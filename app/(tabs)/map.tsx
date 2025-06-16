@@ -6,7 +6,7 @@ import { getFirestore, collection, onSnapshot, doc, updateDoc } from 'firebase/f
 import { useAuth } from '@/context/AuthContext';
 import { app } from '../../firebaseConfig';
 import { Bus, Clock, MapPin, ChevronDown, Layers, Navigation2, Plus, X, List, LocateFixed } from 'lucide-react-native';
-import { colors } from '@/constants/colors';
+import { colors } from '@/constants/Colors';
 import { getBusRoutes, getBusStops } from '@/utils/mockData';
 
 interface Bus {

@@ -1,236 +1,188 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  View, Text, StyleSheet, TextInput, TouchableOpacity,
-  ScrollView, Alert, Modal
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  ActivityIndicator,
+  Button,
+  Alert,
 } from 'react-native';
-import { Plus, X, User, MapPin, Users, Gauge, IdCard } from 'lucide-react-native';
-import { colors } from '@/constants/colors';
-import { addDoc, collection } from 'firebase/firestore';
-import { db } from '@/firebaseConfig';
+import {
+  getFirestore,
+  collection,
+  getDocs,
+  doc,
+  getDoc,
+} from 'firebase/firestore';
+import { Camera, CameraView } from 'expo-camera'; // ✅ Corrigé ici
+import { app } from '@/firebaseConfig';
+import { colors } from '@/constants/Colors';
 
-export default function AddDriver() {
-  const [showForm, setShowForm] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [driverData, setDriverData] = useState({
-    driverName: '',
-    driverLicense: '',
-    assignedBus: '',
-    route: '',
-    contactNumber: '',
-    status: 'active'
-  });
+export default function DriverDashboard() {
+  const db = getFirestore(app);
+  const driverId = 'CtCqf5Cdq8MhTQocaNpa'; // Remplace par l'UID réel si besoin
 
-  const handleInputChange = (field: string, value: string) => {
-    setDriverData({
-      ...driverData,
-      [field]: value
-    });
+  const [fullName, setFullName] = useState('');
+  const [horaires, setHoraires] = useState<any[]>([]);
+  const [routes, setRoutes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [scanned, setScanned] = useState(false);
+  const [qrData, setQrData] = useState<string | null>(null);
+
+  const getJourActuel = () => {
+    const jours = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+    return jours[new Date().getDay()];
   };
 
-  const addDriver = async () => {
-    // Validation des champs requis
-    if (!driverData.driverName || !driverData.driverLicense || !driverData.route) {
-      Alert.alert('Erreur', 'Veuillez remplir tous les champs obligatoires');
-      return;
-    }
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const driverDoc = await getDoc(doc(db, 'Drivers', driverId));
+        if (driverDoc.exists()) {
+          setFullName(driverDoc.data().fullName || '');
+        }
 
-    try {
-      setIsLoading(true);
-      
-      // Ajout à la collection Drivers
-      await addDoc(collection(db, 'Drivers'), {
-        ...driverData,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      });
+        const horairesSnap = await getDocs(collection(db, 'Drivers', driverId, 'Horaires'));
+        const jourActuel = getJourActuel();
+        const horairesData = horairesSnap.docs
+          .map(doc => ({ id: doc.id, ...doc.data() }))
+          .filter(h => h.jour === jourActuel);
+        setHoraires(horairesData);
 
-      Alert.alert('Succès', 'Conducteur ajouté avec succès');
-      setShowForm(false);
-      // Réinitialisation du formulaire
-      setDriverData({
-        driverName: '',
-        driverLicense: '',
-        assignedBus: '',
-        route: '',
-        contactNumber: '',
-        status: 'active'
-      });
+        const routesSnap = await getDocs(collection(db, 'Drivers', driverId, 'Routes'));
+        const routesData = routesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setRoutes(routesData);
+      } catch (error) {
+        console.error('Erreur de récupération :', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    } catch (error) {
-      console.error('Erreur lors de l\'ajout du conducteur:', error);
-      Alert.alert('Erreur', 'Une erreur est survenue lors de l\'ajout du conducteur');
-    } finally {
-      setIsLoading(false);
-    }
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      const { status } = await Camera.requestCameraPermissionsAsync(); // ✅ Corrigé ici
+      setHasPermission(status === 'granted');
+    })();
+  }, []);
+
+  const handleBarCodeScanned = ({ data }: { data: string }) => {
+    if (scanned) return;
+    setScanned(true);
+    setScanning(false);
+
+    setQrData(data);
+    Alert.alert('QR Code scanné', `Contenu : ${data}`);
+    setTimeout(() => setScanned(false), 3000);
   };
+
+  if (loading || hasPermission === null) {
+    return <ActivityIndicator size="large" color={colors.primary} />;
+  }
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity 
-        style={styles.addButton}
-        onPress={() => setShowForm(true)}
-      >
-        <Plus size={20} color={colors.white} />
-        <Text style={styles.addButtonText}>Ajouter un Conducteur</Text>
-      </TouchableOpacity>
+    <ScrollView style={styles.container}>
+      <Text style={styles.header}>Bienvenue, {fullName}</Text>
 
-      {/* Modal pour le formulaire */}
-      <Modal
-        visible={showForm}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowForm(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Ajouter un nouveau Conducteur</Text>
-              <TouchableOpacity onPress={() => setShowForm(false)}>
-                <X size={24} color={colors.danger} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.formContainer}>
-              <View style={styles.inputGroup}>
-                <User size={20} color={colors.textLight} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Nom du conducteur*"
-                  value={driverData.driverName}
-                  onChangeText={(text) => handleInputChange('driverName', text)}
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <IdCard size={20} color={colors.textLight} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Permis de conduire*"
-                  value={driverData.driverLicense}
-                  onChangeText={(text) => handleInputChange('driverLicense', text)}
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <MapPin size={20} color={colors.textLight} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Itinéraire*"
-                  value={driverData.route}
-                  onChangeText={(text) => handleInputChange('route', text)}
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Bus size={20} color={colors.textLight} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Bus assigné"
-                  value={driverData.assignedBus}
-                  onChangeText={(text) => handleInputChange('assignedBus', text)}
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Users size={20} color={colors.textLight} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Numéro de téléphone"
-                  keyboardType="phone-pad"
-                  value={driverData.contactNumber}
-                  onChangeText={(text) => handleInputChange('contactNumber', text)}
-                />
-              </View>
-
-              <TouchableOpacity
-                style={[styles.submitButton, isLoading && styles.disabledButton]}
-                onPress={addDriver}
-                disabled={isLoading}
-              >
-                <Text style={styles.submitButtonText}>
-                  {isLoading ? 'En cours...' : 'Ajouter le Conducteur'}
-                </Text>
-              </TouchableOpacity>
-            </ScrollView>
+      <Text style={styles.sectionTitle}>Horaires du jour</Text>
+      {horaires.length === 0 ? (
+        <Text style={styles.noData}>Aucun horaire prévu aujourd’hui.</Text>
+      ) : (
+        horaires.map((item, index) => (
+          <View key={index} style={styles.card}>
+            <Text>Jour : {item.jour}</Text>
+            <Text>Début : {item.first}</Text>
+            <Text>Fin : {item.second}</Text>
           </View>
+        ))
+      )}
+
+      <Text style={styles.sectionTitle}>Mes Routes</Text>
+      {routes.map((route, index) => (
+        <View key={index} style={styles.card}>
+          <Text>Route : {route.name}</Text>
+          <Text>Départ : {route.depart}</Text>
+          <Text>Arrivée : {route.arriver}</Text>
         </View>
-      </Modal>
-    </View>
+      ))}
+
+      {qrData && (
+        <View style={styles.card}>
+          <Text style={{ fontWeight: 'bold' }}>Dernier QR Code :</Text>
+          <Text>{qrData}</Text>
+        </View>
+      )}
+
+      {!scanning && (
+        <View style={{ marginVertical: 20 }}>
+          <Button title="Scanner un QR Code" onPress={() => setScanning(true)} />
+        </View>
+      )}
+
+      {scanning && hasPermission && (
+        <View style={styles.scanner}>
+          <Text style={{ marginBottom: 10 }}>📷 Scanner actif</Text>
+          <CameraView
+            style={{ width: '100%', height: 300 }}
+            facing="back"
+            onBarcodeScanned={handleBarCodeScanned}
+            barcodeScannerSettings={{
+              barcodeTypes: ['qr'],
+            }}
+          />
+          <Button title="Annuler" onPress={() => setScanning(false)} />
+        </View>
+      )}
+
+      {hasPermission === false && (
+        <Text style={{ color: 'red', textAlign: 'center', marginTop: 10 }}>
+          Permission caméra refusée. Active-la dans les paramètres.
+        </Text>
+      )}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    padding: 16,
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.primary,
-    padding: 12,
-    borderRadius: 8,
-    gap: 10,
-  },
-  addButtonText: {
-    color: colors.white,
-    fontSize: 16,
-    fontFamily: 'Poppins-Medium',
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  modalContent: {
-    width: '90%',
-    maxHeight: '80%',
-    backgroundColor: colors.white,
-    borderRadius: 12,
     padding: 20,
+    flex: 1,
   },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
+  header: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: colors.primary,
   },
-  modalTitle: {
+  sectionTitle: {
     fontSize: 18,
-    fontFamily: 'Poppins-SemiBold',
-    color: colors.textDark,
+    fontWeight: 'bold',
+    marginVertical: 10,
   },
-  formContainer: {
-    flex: 1,
-  },
-  inputGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 15,
-  },
-  input: {
-    flex: 1,
-    height: 50,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 15,
-    fontFamily: 'Poppins-Regular',
-  },
-  submitButton: {
-    backgroundColor: colors.success,
+  card: {
+    backgroundColor: '#fff',
     padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
+    borderRadius: 12,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  noData: {
+    fontStyle: 'italic',
+    color: 'gray',
+    marginBottom: 10,
+  },
+  scanner: {
     marginTop: 20,
-  },
-  disabledButton: {
-    backgroundColor: colors.textLight,
-  },
-  submitButtonText: {
-    color: colors.white,
-    fontFamily: 'Poppins-Medium',
-    fontSize: 16,
+    alignItems: 'center',
   },
 });

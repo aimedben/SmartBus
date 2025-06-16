@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert } from 'react-native';
-import { colors } from '@/constants/colors';
+import { colors } from '@/constants/Colors';
 import { TriangleAlert as AlertTriangle, Check, Car, ClipboardList, Thermometer, Users, X, MapPin, Camera } from 'lucide-react-native';
 import ScreenHeader from '@/components/ScreenHeader';
 

@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, router } from 'expo-router';
-import { colors } from '@/constants/colors';
+import { colors } from '@/constants/Colors';
 import ScreenHeader from '@/components/ScreenHeader';
 
 import { getFirestore, doc, updateDoc } from 'firebase/firestore';

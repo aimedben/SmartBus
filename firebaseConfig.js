@@ -3,14 +3,15 @@ import { getAuth, initializeAuth, getReactNativePersistence } from 'firebase/aut
 import { getFirestore } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Configuration Firebase extraite du projet
+
 const firebaseConfig = {
-  apiKey: "AIzaSyBODZZXfk5lQRpGphZg2Bvt6D4DfJrcrOg",
-  authDomain: "smartbus-5d940.firebaseapp.com",
-  projectId: "smartbus-5d940",
-  storageBucket: "smartbus-5d940.firebasestorage.app",
-  messagingSenderId: "1034025920291",
-  appId: "1:1034025920291:web:3e729c2a37534cfd2f0e96",
-  measurementId: "G-KC5QZEZ62S"
+  apiKey: "AIzaSyDWYnW1lCO0ARGgYCVTXQgP7j4lIu-J9-c",
+  authDomain: "smartbus-81f88.firebaseapp.com", // probable, même si non affiché
+  projectId: "smartbus-81f88",
+  storageBucket: "smartbus-81f88.appspot.com", // probable
+  messagingSenderId: "34653720405",
+  appId: "1:34653720405:android:2e5aded2118920d30ca9dc",
 };
 
 const app = initializeApp(firebaseConfig);

@@ -2,7 +2,7 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { Platform } from 'react-native';
 import { Chrome as Home, MapPin, Bell, User, TriangleAlert as AlertTriangle } from 'lucide-react-native';
-import { colors } from '@/constants/colors';
+import { colors } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 
 export default function TabLayout() {

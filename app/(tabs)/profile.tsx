@@ -13,7 +13,7 @@ import { getFirestore, collection, query, where, getDocs } from 'firebase/firest
 import { getAuth, signOut } from 'firebase/auth';
 import { app } from '../../firebaseConfig'; // 🔁 adapte le chemin
 import { useAuth } from '@/context/AuthContext';
-import { colors } from '@/constants/colors';
+import { colors } from '@/constants/Colors';
 import { LogOut } from 'lucide-react-native';
 
 
