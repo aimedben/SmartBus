@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -18,7 +18,7 @@ import { StatusBar } from "expo-status-bar";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import { colors } from "@/constants/Colors";
 import { doc, getDoc } from "firebase/firestore";
-import { db } from "../../firebaseConfig";
+import { db } from "@/firebaseConfig";
 import { useAuth } from "@/context/AuthContext";
 
 export default function LoginScreen() {

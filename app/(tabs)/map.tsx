@@ -86,14 +86,14 @@ const MapScreen: React.FC = () => {
       if (data.location?.latitude && data.location?.longitude) {
         busList.push({
           id: doc.id, // ID du document (Driver ID)
-          busId: data.busId || '###', // Récupération du champ busId
+          busId: data.fullName , // Récupération du champ busId
           fullName: data.fullName || `Driver ${doc.id}`,
           latitude: data.location.latitude,
           longitude: data.location.longitude,
-          currentLocation: data.currentLocation || 'En route',
-          status: data.status || 'en-route',
-          eta: data.eta || '7 mins',
-          routeProgress: data.routeProgress || 45,
+        //  currentLocation: data.currentLocation || 'En route',
+         // status: data.status || 'en-route',
+         // eta: data.eta || '7 mins',
+        //  routeProgress: data.routeProgress || 45,
           route: data.route || [],
         });
       }
@@ -294,7 +294,7 @@ const MapScreen: React.FC = () => {
           style={styles.map}
           initialRegion={initialRegion}
           showsUserLocation={false}
-          showsUserLocation={true}
+          showsUserLocation={false}
           mapType={mapType}
           onPress={handleMapPress}
           scrollEnabled={!isSelectingPath}
@@ -308,7 +308,7 @@ const MapScreen: React.FC = () => {
               key={bus.id}
               coordinate={{ latitude: bus.latitude, longitude: bus.longitude }}
               title={bus.fullName}
-              description={`Bus ID: ${bus.busId}`}
+            //  description={`Bus ID: ${bus.busId}`}
               onPress={(e) => {
                 if (!isSelectingPath) {
                   e.stopPropagation();
