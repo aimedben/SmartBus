@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,26 +10,24 @@ import {
   ScrollView,
 } from 'react-native';
 import { getFirestore, collection, query, where, getDocs } from 'firebase/firestore';
-import { getAuth, signOut } from 'firebase/auth';
-import { app } from '../../firebaseConfig'; // 🔁 adapte le chemin
+import { getAuth, signOut as firebaseSignOut } from 'firebase/auth';
+import { app } from '../../firebaseConfig';
 import { useAuth } from '@/context/AuthContext';
 import { colors } from '@/constants/Colors';
 import { LogOut } from 'lucide-react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
 
-
-
-const Profile = ({ navigation }: any) => {
+const Profile = () => {
   const [driver, setDriver] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   const db = getFirestore(app);
   const auth = getAuth(app);
   const { userRole, uid, signOut } = useAuth();
 
-  useEffect(() => {
   const fetchDriverData = async () => {
     const user = auth.currentUser;
-
     if (!user) {
       console.log('Utilisateur non connecté');
       setLoading(false);
@@ -37,10 +35,8 @@ const Profile = ({ navigation }: any) => {
     }
 
     try {
-      // Récupérer le rôle depuis le contexte ou depuis une collection centrale "users"
       let role = userRole;
 
-      // Si userRole n'est pas défini, on peut récupérer le rôle depuis une collection "users"
       if (!role) {
         const usersRef = collection(db, 'Users');
         const qUser = query(usersRef, where('uid', '==', user.uid));
@@ -56,7 +52,7 @@ const Profile = ({ navigation }: any) => {
       } else if (role === 'parent') {
         collectionName = 'Parents';
       } else {
-        collectionName = 'Users'; // Par défaut ou autres rôles
+        collectionName = 'Users';
       }
 
       const roleRef = collection(db, collectionName);
@@ -76,23 +72,28 @@ const Profile = ({ navigation }: any) => {
     }
   };
 
-  fetchDriverData();
-}, []);
-
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      fetchDriverData();
+    }, [])
+  );
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
+      await firebaseSignOut(auth);
       Alert.alert('Déconnecté', 'Vous avez été déconnecté.');
-      // navigation.replace('Login');
+      router.replace('/login');
     } catch (error) {
       console.error('Erreur de déconnexion :', error);
     }
   };
 
   const handleEdit = () => {
-    // Redirige vers l'écran d'édition avec les infos à pré-remplir
-    navigation.navigate('EditProfile', { userData: driver });
+    router.push({
+      pathname: '/EditProfile',
+      params: { uid: driver.uid }
+    });
   };
 
   if (loading) {
@@ -113,12 +114,19 @@ const Profile = ({ navigation }: any) => {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.card}>
-        <Image source={{ uri: driver.profileImage }} style={styles.image} />
+        {/* Modification ici pour utiliser l'image locale */}
+        <Image
+          source={require('@/assets/images/profile.jpg')}
+          style={styles.image}
+        />
         <Text style={styles.name}>{driver.fullName}</Text>
+
         <Text style={styles.label}>Email</Text>
         <Text style={styles.value}>{driver.email}</Text>
+
         <Text style={styles.label}>Contact</Text>
-        <Text style={styles.value}>{driver.Contact}</Text>
+        <Text style={styles.value}>{driver.contact}</Text>
+
         <Text style={styles.label}>Rôle</Text>
         <Text style={styles.value}>{driver.role}</Text>
 
@@ -126,7 +134,7 @@ const Profile = ({ navigation }: any) => {
           <Text style={styles.editText}>✏️ Modifier les informations</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.logoutButton} onPress={signOut}>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <LogOut size={20} color={colors.white} />
           <Text style={styles.logoutText}>Se déconnecter</Text>
         </TouchableOpacity>
@@ -134,7 +142,6 @@ const Profile = ({ navigation }: any) => {
         <View style={styles.versionContainer}>
           <Text style={styles.versionText}>Smart Bus v1.0.0</Text>
         </View>
-
       </View>
     </ScrollView>
   );
@@ -209,6 +216,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     width: '100%',
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
   },
   logoutText: {
     color: '#fff',
@@ -216,5 +226,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   versionContainer: { alignItems: 'center', paddingVertical: 18 },
-  versionText: { fontSize: 14, color: colors.textLight }
+  versionText: { fontSize: 14, color: colors.textLight },
 });

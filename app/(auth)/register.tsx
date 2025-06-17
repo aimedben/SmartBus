@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,15 +10,18 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import { router } from "expo-router";
-import { Lock, Mail, User, Eye, EyeOff, ChevronLeft, Contact } from "lucide-react-native";
+import { Lock, Mail, User, Eye, EyeOff, Contact, Camera } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
 import { colors } from "@/constants/Colors";
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { db } from "../../firebaseConfig";
 import * as Location from "expo-location";
+import * as ImagePicker from "expo-image-picker";
+import { registerForPushNotificationsAsync } from "../(tabs)/index";
 
 export default function RegisterScreen() {
   const [name, setName] = useState("");
@@ -26,30 +29,81 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [role, setRole] = useState("parent");
+  const [contact, setContact] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [contact, setContact] = useState("");
+  const [pushToken, setPushToken] = useState<string | null>(null);
+  const [image, setImage] = useState<string | null>(null);
+  const [adminCode, setAdminCode] = useState("");
+  const [showAdminCode, setShowAdminCode] = useState(false);
+
+  useEffect(() => {
+    const fetchPushToken = async () => {
+      const token = await registerForPushNotificationsAsync();
+      setPushToken(token);
+    };
+
+    fetchPushToken();
+  }, []);
+
+  const pickImage = async () => {
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+      base64: true,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      setImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
+    }
+  };
+
+  const takePhoto = async () => {
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+
+    if (permissionResult.granted === false) {
+      Alert.alert("Permission requise", "L'accès à la caméra est nécessaire pour prendre une photo.");
+      return;
+    }
+
+    let result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+      base64: true,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      setImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
+    }
+  };
 
   const validateFields = () => {
     if (!name.trim()) {
-      Alert.alert("Erreur", "Veuillez entrer votre nom complet");
+      Alert.alert("Erreur", "Nom requis");
       return false;
     }
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      Alert.alert("Erreur", "Veuillez entrer une adresse email valide");
+      Alert.alert("Erreur", "Email invalide");
       return false;
     }
     if (!contact.trim()) {
-      Alert.alert("Erreur", "Veuillez entrer votre numéro de téléphone");
+      Alert.alert("Erreur", "Téléphone requis");
       return false;
     }
     if (password.length < 6) {
-      Alert.alert("Erreur", "Le mot de passe doit contenir au moins 6 caractères");
+      Alert.alert("Erreur", "Mot de passe trop court (6 caractères minimum)");
       return false;
     }
     if (password !== confirmPassword) {
       Alert.alert("Erreur", "Les mots de passe ne correspondent pas");
+      return false;
+    }
+    if (role === "admin" && adminCode !== "ADMIN123") { // Code secret pour admin
+      Alert.alert("Erreur", "Code admin incorrect");
       return false;
     }
     return true;
@@ -66,7 +120,7 @@ export default function RegisterScreen() {
         longitude: location.coords.longitude,
       };
     } catch (error) {
-      console.warn("Erreur de localisation:", error);
+      console.warn("Erreur GPS:", error);
       return null;
     }
   };
@@ -76,330 +130,334 @@ export default function RegisterScreen() {
 
     try {
       setLoading(true);
+      
+      // Création du compte Firebase Auth
       const auth = getAuth();
-
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
+      // Préparation des données utilisateur
       const userData: any = {
         uid: user.uid,
-        email: user.email,
         fullName: name,
+        email: user.email,
         contact,
         role,
+        image,
         createdAt: new Date(),
+        pushToken: pushToken || null,
       };
 
+      // Ajout de la localisation pour les chauffeurs
       if (role === "driver") {
         const location = await getLocation();
-        if (location) {
-          userData.location = location;
-        }
+        if (location) userData.location = location;
       }
 
-      // Créer un document dans la collection Users
+      // Sauvegarde dans Firestore
       await setDoc(doc(db, "Users", user.uid), userData);
 
-      // Créer un document dans la collection spécifique selon le rôle
-      let roleCollection = "Parents"; // Par défaut
-      if (role === "driver") {
-        roleCollection = "Drivers";
-      } else if (role === "admin") {
-        roleCollection = "Admins";
-      }
+      // Sauvegarde dans la collection spécifique au rôle
+      let roleCollection = "Parents";
+      if (role === "driver") roleCollection = "Drivers";
+      if (role === "admin") roleCollection = "Admins";
       
       await setDoc(doc(db, roleCollection, user.uid), userData);
 
-      router.replace("/(tabs)");
+      Alert.alert("Succès", "Compte créé avec succès !");
+      router.replace(role === "admin" ? "/admin" : "/login");
     } catch (error: any) {
       console.error("Erreur d'inscription:", error);
-      let errorMessage = "Une erreur est survenue lors de l'inscription";
-      switch (error.code) {
-        case "auth/email-already-in-use":
-          errorMessage = "Cet email est déjà utilisé";
-          break;
-        case "auth/weak-password":
-          errorMessage = "Le mot de passe doit contenir au moins 6 caractères";
-          break;
-        case "auth/invalid-email":
-          errorMessage = "Adresse email invalide";
-          break;
+      let message = "Une erreur est survenue lors de l'inscription.";
+      if (error.code === "auth/email-already-in-use") {
+        message = "Cet email est déjà utilisé par un autre compte.";
+      } else if (error.code === "auth/invalid-email") {
+        message = "L'adresse email est invalide.";
+      } else if (error.code === "auth/weak-password") {
+        message = "Le mot de passe doit contenir au moins 6 caractères.";
       }
-      Alert.alert("Erreur", errorMessage);
+      Alert.alert("Erreur", message);
     } finally {
       setLoading(false);
     }
   };
 
-  // ... (le reste du code reste inchangé)
+  const handleRoleChange = (newRole: string) => {
+    setRole(newRole);
+    setShowAdminCode(newRole === "admin");
+  };
+
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === "ios" ? "padding" : "height"} 
       style={styles.container}
     >
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <ChevronLeft size={24} color={colors.textDark} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Créer un compte</Text>
-          <View style={{ width: 24 }} />
-        </View>
+        <Text style={styles.title}>Créer un compte</Text>
 
-        <View style={styles.formContainer}>
-          <Text style={styles.subtitle}>Rejoignez notre communauté</Text>
-
-          <View style={styles.inputContainer}>
-            <User size={20} color={colors.primary} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Nom complet"
-              placeholderTextColor={colors.textLight}
-              value={name}
-              onChangeText={setName}
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Mail size={20} color={colors.primary} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Email"
-              placeholderTextColor={colors.textLight}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              value={email}
-              onChangeText={setEmail}
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Contact size={20} color={colors.primary} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Téléphone"
-              placeholderTextColor={colors.textLight}
-              keyboardType="phone-pad"
-              value={contact}
-              onChangeText={setContact}
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Lock size={20} color={colors.primary} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Mot de passe"
-              placeholderTextColor={colors.textLight}
-              secureTextEntry={!showPassword}
-              value={password}
-              onChangeText={setPassword}
-            />
-            <TouchableOpacity
-              style={styles.eyeIcon}
-              onPress={() => setShowPassword(!showPassword)}
-            >
-              {showPassword ? (
-                <EyeOff size={20} color={colors.textLight} />
-              ) : (
-                <Eye size={20} color={colors.textLight} />
-              )}
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Lock size={20} color={colors.primary} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Confirmer le mot de passe"
-              placeholderTextColor={colors.textLight}
-              secureTextEntry={!showConfirmPassword}
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-            />
-            <TouchableOpacity
-              style={styles.eyeIcon}
-              onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-            >
-              {showConfirmPassword ? (
-                <EyeOff size={20} color={colors.textLight} />
-              ) : (
-                <Eye size={20} color={colors.textLight} />
-              )}
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.roleContainer}>
-            <Text style={styles.roleLabel}>Je suis :</Text>
-            <View style={styles.rolesRow}>
-              {["parent", "driver"].map((r) => (
-                <TouchableOpacity
-                  key={r}
-                  onPress={() => setRole(r)}
-                  style={[styles.roleButton, role === r && styles.roleSelected]}
-                >
-                  <Text style={[styles.roleText, role === r && styles.roleTextSelected]}>
-                    {r === "parent" ? "Parent" : "Conducteur"}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+        {/* Section Photo de profil */}
+        <View style={styles.profilePictureContainer}>
+          {image ? (
+            <Image source={{ uri: image }} style={styles.profilePicture} />
+          ) : (
+            <View style={styles.profilePicturePlaceholder}>
+              <User size={40} color={colors.gray} />
             </View>
-          </View>
-
-          <TouchableOpacity
-            style={[styles.registerButton, loading && styles.registerButtonDisabled]}
-            onPress={handleRegister}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color={colors.white} />
-            ) : (
-              <Text style={styles.registerButtonText}>Créer un compte</Text>
-            )}
-          </TouchableOpacity>
-
-          <View style={styles.loginContainer}>
-            <Text style={styles.loginText}>Déjà un compte ? </Text>
-            <TouchableOpacity onPress={() => router.push("/login")}>
-              <Text style={styles.loginLink}>Se connecter</Text>
+          )}
+          <View style={styles.profilePictureButtons}>
+            <TouchableOpacity 
+              style={styles.profilePictureButton} 
+              onPress={pickImage}
+            >
+              <Text style={styles.profilePictureButtonText}>Choisir</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.profilePictureButton} 
+              onPress={takePhoto}
+            >
+              <Camera size={16} color={colors.primary} />
+              <Text style={styles.profilePictureButtonText}>Prendre</Text>
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Champs de formulaire */}
+        <View style={styles.inputContainer}>
+          <User size={20} color={colors.primary} />
+          <TextInput
+            style={styles.input}
+            placeholder="Nom complet"
+            value={name}
+            onChangeText={setName}
+          />
+        </View>
+
+        <View style={styles.inputContainer}>
+          <Mail size={20} color={colors.primary} />
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+        </View>
+
+        <View style={styles.inputContainer}>
+          <Contact size={20} color={colors.primary} />
+          <TextInput
+            style={styles.input}
+            placeholder="Téléphone"
+            value={contact}
+            onChangeText={setContact}
+            keyboardType="phone-pad"
+          />
+        </View>
+
+        <View style={styles.inputContainer}>
+          <Lock size={20} color={colors.primary} />
+          <TextInput
+            style={styles.input}
+            placeholder="Mot de passe"
+            secureTextEntry={!showPassword}
+            value={password}
+            onChangeText={setPassword}
+          />
+          <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+            {showPassword ? <EyeOff color="gray" /> : <Eye color="gray" />}
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.inputContainer}>
+          <Lock size={20} color={colors.primary} />
+          <TextInput
+            style={styles.input}
+            placeholder="Confirmer le mot de passe"
+            secureTextEntry={!showConfirmPassword}
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+          />
+          <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+            {showConfirmPassword ? <EyeOff color="gray" /> : <Eye color="gray" />}
+          </TouchableOpacity>
+        </View>
+
+        {/* Sélection du rôle */}
+        <Text style={styles.roleLabel}>Rôle :</Text>
+        <View style={styles.roleContainer}>
+          {["parent", "driver", "admin"].map((r) => (
+            <TouchableOpacity
+              key={r}
+              style={[styles.roleButton, role === r && styles.roleButtonSelected]}
+              onPress={() => handleRoleChange(r)}
+            >
+              <Text style={[styles.roleText, role === r && styles.roleTextSelected]}>
+                {r === "parent" ? "Parent" : r === "driver" ? "Chauffeur" : "Admin"}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Champ code admin (visible seulement si rôle admin sélectionné) */}
+        {showAdminCode && (
+          <View style={styles.inputContainer}>
+            <Lock size={20} color={colors.primary} />
+            <TextInput
+              style={styles.input}
+              placeholder="Code admin"
+              secureTextEntry={true}
+              value={adminCode}
+              onChangeText={setAdminCode}
+            />
+          </View>
+        )}
+
+        {/* Bouton d'inscription */}
+        <TouchableOpacity
+          style={[styles.registerButton, loading && styles.registerButtonDisabled]}
+          onPress={handleRegister}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.registerText}>S'inscrire</Text>
+          )}
+        </TouchableOpacity>
+
+        {/* Lien vers la connexion */}
+        <TouchableOpacity onPress={() => router.replace("/login")}>
+          <Text style={styles.loginText}>Déjà un compte ? Se connecter</Text>
+        </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  scrollContainer: { flexGrow: 1, paddingBottom: 24 },
-  header: {
+  container: { 
+    flex: 1, 
+    backgroundColor: colors.background 
+  },
+  scrollContainer: { 
+    padding: 20 
+  },
+  title: { 
+    fontSize: 24, 
+    fontWeight: "bold", 
+    marginBottom: 20, 
+    color: colors.primary,
+    textAlign: "center" 
+  },
+  profilePictureContainer: {
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  profilePicture: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    marginBottom: 10,
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  profilePicturePlaceholder: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: colors.inputBackground,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 10,
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  profilePictureButtons: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 15,
+  },
+  profilePictureButton: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingTop: 60,
-    paddingBottom: 20,
+    gap: 5,
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    backgroundColor: colors.inputBackground,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  backButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: colors.white,
-    elevation: 2,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  headerTitle: {
-    fontFamily: "Poppins-SemiBold",
-    fontSize: 18,
-    color: colors.textDark,
-  },
-  formContainer: { paddingHorizontal: 24 },
-  subtitle: {
-    fontFamily: "Poppins-Regular",
-    fontSize: 16,
-    color: colors.textLight,
-    marginBottom: 24,
-    textAlign: "center",
-    lineHeight: 24,
+  profilePictureButtonText: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: "500",
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: colors.inputBackground,
-    borderRadius: 12,
-    marginBottom: 16,
-    paddingHorizontal: 16,
-    height: 56,
     borderWidth: 1,
     borderColor: colors.border,
-    elevation: 1,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    marginBottom: 16,
   },
-  inputIcon: { marginRight: 12 },
-  input: {
-    flex: 1,
-    fontFamily: "Poppins-Regular",
-    fontSize: 16,
-    color: colors.textDark,
+  input: { 
+    flex: 1, 
+    padding: 10, 
+    color: colors.textDark 
   },
-  eyeIcon: { padding: 8 },
   registerButton: {
     backgroundColor: colors.primary,
-    borderRadius: 12,
-    height: 56,
-    justifyContent: "center",
+    borderRadius: 10,
+    padding: 16,
     alignItems: "center",
-    marginTop: 16,
-    elevation: 3,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
+    marginTop: 10,
   },
   registerButtonDisabled: {
     backgroundColor: colors.primaryLight,
-    elevation: 1,
-    shadowOpacity: 0.1,
   },
-  registerButtonText: {
-    fontFamily: "Poppins-SemiBold",
-    fontSize: 16,
-    color: colors.white,
+  registerText: { 
+    color: "#fff", 
+    fontWeight: "bold", 
+    fontSize: 16 
   },
-  loginContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    marginTop: 16,
-  },
-  loginText: {
-    fontFamily: "Poppins-Regular",
-    fontSize: 14,
-    color: colors.textLight,
-  },
-  loginLink: {
-    fontFamily: "Poppins-SemiBold",
-    fontSize: 14,
+  loginText: { 
+    marginTop: 16, 
+    textAlign: "center", 
     color: colors.primary,
-    marginLeft: 4,
+    textDecorationLine: "underline",
   },
-  roleContainer: { marginBottom: 16 },
-  roleLabel: {
-    fontFamily: "Poppins-SemiBold",
-    fontSize: 14,
-    color: colors.textDark,
-    marginBottom: 8,
+  roleLabel: { 
+    fontWeight: "600", 
+    fontSize: 14, 
+    marginBottom: 6,
+    color: colors.textDark 
   },
-  rolesRow: {
+  roleContainer: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 8,
+    justifyContent: "space-around",
+    marginBottom: 16,
   },
   roleButton: {
-    flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
     borderWidth: 1,
-    borderRadius: 12,
     borderColor: colors.border,
-    backgroundColor: colors.white,
   },
-  roleSelected: {
+  roleButtonSelected: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
-  roleText: {
-    fontFamily: "Poppins-Regular",
-    color: colors.textDark,
-    textAlign: "center",
+  roleText: { 
+    color: colors.textDark 
   },
-  roleTextSelected: {
-    color: colors.white,
-    fontFamily: "Poppins-SemiBold",
+  roleTextSelected: { 
+    color: "#fff", 
+    fontWeight: "bold" 
   },
 });

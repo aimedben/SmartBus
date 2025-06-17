@@ -1,7 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { colors } from '@/constants/Colors';
-import { Bell, Search } from 'lucide-react-native';
 
 interface DashboardHeaderProps {
   userName: string;
@@ -11,23 +10,23 @@ interface DashboardHeaderProps {
 export default function DashboardHeader({ userName, userRole }: DashboardHeaderProps) {
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good Morning';
-    if (hour < 18) return 'Good Afternoon';
-    return 'Good Evening';
+    if (hour < 12) return 'Bonjour';
+    if (hour < 18) return 'Bon après-midi';
+    return 'Bonsoir';
   };
 
   const getRoleText = () => {
     switch (userRole) {
       case 'parent':
-        return 'Parent Dashboard';
+        return 'Tableau de bord - Parent';
       case 'driver':
-        return 'Driver Dashboard';
+        return 'Tableau de bord - Chauffeur';
       case 'admin':
-        return 'Admin Dashboard';
+        return 'Tableau de bord - Administrateur';
       case 'student':
-        return 'Student Dashboard';
+        return 'Tableau de bord - Élève';
       default:
-        return 'Dashboard';
+        return 'Tableau de bord';
     }
   };
 
@@ -36,17 +35,8 @@ export default function DashboardHeader({ userName, userRole }: DashboardHeaderP
       <View style={styles.content}>
         <View style={styles.hour}>
           <Text style={styles.greeting}>{getGreeting()},</Text>
-          <Text style={styles.name}>{userName || 'User'}</Text>
+          <Text style={styles.name}>{userName || 'Utilisateur'}</Text>
           <Text style={styles.role}>{getRoleText()}</Text>
-        </View>
-
-        <View style={styles.actions}>
-          <TouchableOpacity style={styles.iconButton}>
-            <Search size={24} color={colors.textDark} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton}>
-            <Bell size={24} color={colors.textDark} />
-          </TouchableOpacity>
         </View>
       </View>
     </View>
@@ -55,7 +45,6 @@ export default function DashboardHeader({ userName, userRole }: DashboardHeaderP
 
 const styles = StyleSheet.create({
   container: {
-    //top: 10,
     padding: 16,
     backgroundColor: colors.background,
     borderBottomWidth: 1,
@@ -81,13 +70,5 @@ const styles = StyleSheet.create({
   role: {
     fontSize: 16,
     color: colors.textLight,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: Platform.OS === 'web' ? 16 : 12,
-  },
-  iconButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
   },
 });

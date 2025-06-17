@@ -11,9 +11,9 @@ import { db } from '@/firebaseConfig';
 export async function fetchAdminStats() {
   try {
     const [driversSnap, studentsSnap, busesSnap] = await Promise.all([
-      getDocs(query(collection(db, 'users'), where('role', '==', 'driver'))),
-      getDocs(query(collection(db, 'users'), where('role', '==', 'student'))),
-      getDocs(query(collection(db, 'buses'), where('status', '==', 'active'))),
+      getDocs(query(collection(db, 'Users'), where('role', '==', 'driver'))),
+      getDocs(query(collection(db, 'Users'), where('role', '==', 'student'))),
+      getDocs(query(collection(db, 'Buses'), where('status', '==', 'active'))),
     ]);
 
     return {
